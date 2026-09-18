@@ -1,3 +1,12 @@
 <Solution>
   <Project Path="SharpShift.Inventory.Core/SharpShift.Inventory.Core.csproj" />
+  <Project Path="SharpShift.Inventory.Cli/SharpShift.Inventory.Cli.csproj" />
+  <Project Path="SharpShift.Inventory.Discovery/SharpShift.Inventory.Discovery.csproj" />
+  <Project Path="SharpShift.Inventory.ProjectAnalysis/SharpShift.Inventory.ProjectAnalysis.csproj" />
+  <Project Path="SharpShift.Inventory.DependencyAnalysis/SharpShift.Inventory.DependencyAnalysis.csproj" />
+  <Project Path="SharpShift.Inventory.RiskAnalysis/SharpShift.Inventory.RiskAnalysis.csproj" />
+  <Project Path="SharpShift.Inventory.Reporting/SharpShift.Inventory.Reporting.csproj" />
+  <Project Path="SharpShift.Inventory.KnowledgeBase/SharpShift.Inventory.KnowledgeBase.csproj" />
+  <Project Path="SharpShift.Inventory.Storage/SharpShift.Inventory.Storage.csproj" />
+  <Project Path="SharpShift.Inventory.Tests/SharpShift.Inventory.Tests.csproj" />
 </Solution>
