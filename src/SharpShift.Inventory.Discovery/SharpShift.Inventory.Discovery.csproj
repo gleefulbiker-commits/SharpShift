@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SharpShift.Inventory.Core\SharpShift.Inventory.Core.csproj" />
+  </ItemGroup>
+
 </Project>
