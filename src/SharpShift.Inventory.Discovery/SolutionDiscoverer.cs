@@ -17,7 +17,10 @@ namespace SharpShift.Inventory.Discovery
             if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
                 return Task.FromResult(Enumerable.Empty<string>());
 
-            var files = Directory.EnumerateFiles(rootPath, "*.sln", SearchOption.AllDirectories);
+            // Discover both .sln and .slnx solution files
+            var slnFiles = Directory.EnumerateFiles(rootPath, "*.sln", SearchOption.AllDirectories);
+            var slnxFiles = Directory.EnumerateFiles(rootPath, "*.slnx", SearchOption.AllDirectories);
+            var files = slnFiles.Concat(slnxFiles);
             return Task.FromResult(files);
         }
     }
