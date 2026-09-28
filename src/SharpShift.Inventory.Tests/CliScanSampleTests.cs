@@ -42,11 +42,11 @@ namespace SharpShift.Inventory.Tests
                 var json = File.ReadAllText(output);
                 var inv = JsonSerializer.Deserialize<SolutionInventory>(json);
                 Assert.IsNotNull(inv);
-                Assert.AreEqual(2, inv.Projects.Count);
+                Assert.AreEqual(2, inv?.Projects.Count);
 
                 // frameworks normalized
-                Assert.IsTrue(inv.Projects.Exists(p => p.Framework == ".NET Framework 4.6.2"));
-                Assert.IsTrue(inv.Projects.Exists(p => p.Framework == ".NET Framework 4.8"));
+                Assert.IsTrue(inv?.Projects.Exists(p => p.Framework == ".NET Framework 4.6.2"));
+                Assert.IsTrue(inv?.Projects.Exists(p => p.Framework == ".NET Framework 4.8"));
             }
             finally
             {

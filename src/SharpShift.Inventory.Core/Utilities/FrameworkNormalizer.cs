@@ -1,8 +1,9 @@
 using System;
+using System.Text.RegularExpressions;
 
 namespace SharpShift.Inventory.Core.Utilities
 {
-    public static class FrameworkNormalizer
+    public static partial class FrameworkNormalizer
     {
         public static string Normalize(string? tf)
         {
@@ -31,7 +32,7 @@ namespace SharpShift.Inventory.Core.Utilities
             if (map.TryGetValue(tf, out var friendly))
                 return friendly;
 
-            var m = System.Text.RegularExpressions.Regex.Match(tf, "^net(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var m = NetRegex().Match(tf);
             if (m.Success)
             {
                 var major = m.Groups[1].Value;
@@ -41,7 +42,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 return $".NET {major}.0";
             }
 
-            m = System.Text.RegularExpressions.Regex.Match(tf, "^netcoreapp(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            m = NetCoreAppRegex().Match(tf);
             if (m.Success)
             {
                 var major = m.Groups[1].Value;
@@ -49,7 +50,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 return $".NET Core {major}.{minor}";
             }
 
-            m = System.Text.RegularExpressions.Regex.Match(tf, "^netstandard(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            m = NetStandardRegex().Match(tf);
             if (m.Success)
             {
                 var major = m.Groups[1].Value;
@@ -63,5 +64,14 @@ namespace SharpShift.Inventory.Core.Utilities
 
             return tf;
         }
+
+        [GeneratedRegex(@"^net(\d+)(\.(\d+))?", RegexOptions.IgnoreCase)]
+        private static partial Regex NetRegex();
+
+        [GeneratedRegex(@"^netcoreapp(\d+)(\.(\d+))?", RegexOptions.IgnoreCase)]
+        private static partial Regex NetCoreAppRegex();
+
+        [GeneratedRegex(@"^netstandard(\d+)(\.(\d+))?", RegexOptions.IgnoreCase)]
+        private static partial Regex NetStandardRegex();
     }
 }

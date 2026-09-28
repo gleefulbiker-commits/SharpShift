@@ -24,15 +24,11 @@ namespace SharpShift.Inventory.Core.Models
         public string Source { get; set; } = string.Empty;
 
         /// <summary>
-        /// Additional information or metadata (public key token, hint path, etc.).
-        /// </summary>
-        public string? Metadata { get; set; }
-
-        /// <summary>
         /// HintPath for assembly references when available.
         /// </summary>
         public string? HintPath { get; set; }
 
+        /// <summary>
         /// <summary>
         /// Public key token when available (from reference include or metadata).
         /// </summary>

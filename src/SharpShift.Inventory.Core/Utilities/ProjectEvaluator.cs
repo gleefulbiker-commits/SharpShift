@@ -14,6 +14,15 @@ namespace SharpShift.Inventory.Core.Utilities
         private static bool _msbuildRegistered = false;
 
         /// <summary>
+        /// Clear the evaluator cache and reset MSBuild registration state.
+        /// </summary>
+        public static void ClearCache()
+        {
+            _cache.Clear();
+            _msbuildRegistered = false;
+        }
+
+        /// <summary>
         /// Attempts to evaluate common project properties using MSBuild APIs via reflection.
         /// Returns a dictionary of property name->value when successful; otherwise null.
         /// Caches results per project path to reduce overhead.
@@ -48,11 +57,10 @@ namespace SharpShift.Inventory.Core.Utilities
                 var getProp = projectType.GetMethod("GetPropertyValue", new[] { typeof(string) });
                 var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                string[] keys = new[] { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" };
+                string[] keys = { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" };
                 foreach (var k in keys)
                 {
-                    var v = getProp?.Invoke(projObj, new object[] { k }) as string;
-                    if (!string.IsNullOrWhiteSpace(v))
+                    if (getProp?.Invoke(projObj, new object[] { k }) is string v && !string.IsNullOrWhiteSpace(v))
                         props[k] = v;
                 }
 
@@ -61,16 +69,19 @@ namespace SharpShift.Inventory.Core.Utilities
                 {
                     var projectInstanceType = projectType;
                     var itemsProp = projectInstanceType.GetProperty("Items");
-                    var items = itemsProp?.GetValue(projObj) as System.Collections.IEnumerable;
-                    if (items != null)
+                    if (itemsProp?.GetValue(projObj) is System.Collections.IEnumerable items)
                     {
                         int idx = 0;
                         foreach (var item in items)
                         {
                             var itemType = item.GetType();
-                            var itemTypeName = itemType.GetProperty("ItemType")?.GetValue(item) as string;
-                            var include = itemType.GetProperty("EvaluatedInclude")?.GetValue(item) as string;
-                            if (!string.IsNullOrWhiteSpace(itemTypeName) && !string.IsNullOrWhiteSpace(include))
+                            var itemTypeProp = itemType.GetProperty("ItemType");
+                            var evaluatedIncludeProp = itemType.GetProperty("EvaluatedInclude");
+
+                            if (itemTypeProp?.GetValue(item) is string itemTypeName &&
+                                evaluatedIncludeProp?.GetValue(item) is string include &&
+                                !string.IsNullOrWhiteSpace(itemTypeName) &&
+                                !string.IsNullOrWhiteSpace(include))
                             {
                                 // store as Item.{index}.Type and Item.{index}.Include
                                 props[$"Item.{idx}.Type"] = itemTypeName;
@@ -79,15 +90,15 @@ namespace SharpShift.Inventory.Core.Utilities
                                 try
                                 {
                                     var metadataProp = itemType.GetProperty("Metadata");
-                                    var metadata = metadataProp?.GetValue(item) as System.Collections.IEnumerable;
-                                    if (metadata != null)
+                                    if (metadataProp?.GetValue(item) is System.Collections.IEnumerable metadata)
                                     {
                                         foreach (var md in metadata)
                                         {
                                             var mdType = md.GetType();
-                                            var name = mdType.GetProperty("Name")?.GetValue(md) as string;
-                                            var value = mdType.GetProperty("EvaluatedValue")?.GetValue(md) as string;
-                                            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(value))
+                                            if (mdType.GetProperty("Name")?.GetValue(md) is string name &&
+                                                mdType.GetProperty("EvaluatedValue")?.GetValue(md) is string value &&
+                                                !string.IsNullOrWhiteSpace(name) &&
+                                                !string.IsNullOrWhiteSpace(value))
                                             {
                                                 props[$"Item.{idx}.Metadata.{name}"] = value;
                                             }

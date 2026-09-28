@@ -37,5 +37,10 @@ namespace SharpShift.Inventory.Core.Models
         /// This is included in the serialized inventory output so dependency details (HintPath, PublicKeyToken, OtherMetadata) are persisted.
         /// </summary>
         public List<DependencyInventory> Dependencies { get; set; } = new();
+
+        /// <summary>
+        /// Local path when project was discovered via cloning (GitHub discovery clones).
+        /// </summary>
+        public string? LocalPath { get; set; }
     }
 }

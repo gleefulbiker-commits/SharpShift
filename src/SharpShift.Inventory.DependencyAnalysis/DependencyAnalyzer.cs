@@ -62,7 +62,6 @@ namespace SharpShift.Inventory.DependencyAnalysis
                             // Attempt to pick up metadata captured by ProjectEvaluator
                             string? version = null;
                             string? hintPath = null;
-                            string? metadata = null;
 
                             // keys like Item.{idx}.Metadata.{Name}
                             var metaKeys = g.Keys.Where(k => k.StartsWith("Metadata.", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -78,13 +77,12 @@ namespace SharpShift.Inventory.DependencyAnalysis
                                 else
                                 {
                                     other[mdName] = mdVal;
-                                    metadata = string.IsNullOrEmpty(metadata) ? $"{mdName}={mdVal}" : metadata + ";" + $"{mdName}={mdVal}";
                                 }
                             }
 
                             if (type.Equals("PackageReference", StringComparison.OrdinalIgnoreCase))
                             {
-                                var dep = new DependencyInventory { Name = include, Version = string.IsNullOrWhiteSpace(version) ? null : version, Metadata = metadata, HintPath = hintPath, OtherMetadata = other.Count > 0 ? other : null, Source = "NuGet" };
+                                var dep = new DependencyInventory { Name = include, Version = string.IsNullOrWhiteSpace(version) ? null : version, HintPath = hintPath, OtherMetadata = other.Count > 0 ? other : null, Source = "NuGet" };
                                 result.Dependencies.Add(dep);
                             }
                             else if (type.Equals("Reference", StringComparison.OrdinalIgnoreCase))
@@ -105,7 +103,7 @@ namespace SharpShift.Inventory.DependencyAnalysis
                                 }
                                 catch { }
 
-                                var dep = new DependencyInventory { Name = include, Metadata = string.IsNullOrWhiteSpace(hintPath) ? metadata : hintPath, HintPath = hintPath, PublicKeyToken = pkt, OtherMetadata = other.Count > 0 ? other : null, Source = "Reference" };
+                                var dep = new DependencyInventory { Name = include, HintPath = hintPath, PublicKeyToken = pkt, OtherMetadata = other.Count > 0 ? other : null, Source = "Reference" };
                                 result.Dependencies.Add(dep);
                             }
                         }
@@ -175,7 +173,7 @@ namespace SharpShift.Inventory.DependencyAnalysis
                             }
                             catch { }
 
-                            result.Dependencies.Add(new DependencyInventory { Name = r!, Metadata = string.IsNullOrWhiteSpace(hint) ? null : hint, Source = "Reference", OtherMetadata = other.Count > 0 ? other : null });
+                            result.Dependencies.Add(new DependencyInventory { Name = r!, HintPath = string.IsNullOrWhiteSpace(hint) ? null : hint, Source = "Reference", OtherMetadata = other.Count > 0 ? other : null });
                         }
                     }
                     catch

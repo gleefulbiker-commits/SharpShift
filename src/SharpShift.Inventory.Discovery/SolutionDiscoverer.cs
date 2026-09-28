@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SharpShift.Inventory.Core.Interfaces;
+using SharpShift.Inventory.Core.Models;
 
 namespace SharpShift.Inventory.Discovery
 {
@@ -11,17 +12,30 @@ namespace SharpShift.Inventory.Discovery
     /// </summary>
     public class SolutionDiscoverer : ISolutionDiscoverer
     {
-        /// <inheritdoc />
-        public Task<IEnumerable<string>> DiscoverSolutionsAsync(string rootPath)
-        {
-            if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
-                return Task.FromResult(Enumerable.Empty<string>());
+        private readonly ISolutionDiscoverer _fsDiscoverer = new FileSystemSolutionDiscoverer();
+        private readonly ISolutionDiscoverer _ghDiscoverer;
 
-            // Discover both .sln and .slnx solution files
-            var slnFiles = Directory.EnumerateFiles(rootPath, "*.sln", SearchOption.AllDirectories);
-            var slnxFiles = Directory.EnumerateFiles(rootPath, "*.slnx", SearchOption.AllDirectories);
-            var files = slnFiles.Concat(slnxFiles);
-            return Task.FromResult(files);
+        public SolutionDiscoverer()
+        {
+            // Create GitHub discoverer with default HttpClient.
+            var http = new System.Net.Http.HttpClient();
+            _ghDiscoverer = new GitHubSolutionDiscoverer(http);
+        }
+
+        /// <inheritdoc />
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string rootPath)
+        {
+            var results = new List<SolutionDiscoveryEntry>();
+
+            var fs = await _fsDiscoverer.DiscoverSolutionsAsync(rootPath);
+            if (fs != null)
+                results.AddRange(fs);
+
+            var gh = await _ghDiscoverer.DiscoverSolutionsAsync(rootPath);
+            if (gh != null)
+                results.AddRange(gh);
+
+            return results;
         }
     }
 }

@@ -14,7 +14,15 @@ namespace SharpShift.Inventory.Cli
     /// </summary>
     public static class InventoryCliRunner
     {
-        public static async Task<int> RunAsync(string rootPath, string outputFile, SharpShift.Inventory.Core.Interfaces.ISolutionDiscoverer? solutionDiscoverer = null, SharpShift.Inventory.Core.Interfaces.IProjectDiscoverer? projectDiscoverer = null, bool requireMsBuild = false)
+        public static async Task<int> RunAsync(
+            string rootPath,
+            string outputFile,
+            SharpShift.Inventory.Core.Interfaces.ISolutionDiscoverer? solutionDiscoverer = null,
+            SharpShift.Inventory.Core.Interfaces.IProjectDiscoverer? projectDiscoverer = null,
+            bool requireMsBuild = false,
+            int retryAttempts = 0,
+            bool clean = false,
+            bool analyzeCloned = false)
         {
             try
             {
@@ -27,10 +35,15 @@ namespace SharpShift.Inventory.Cli
                 var slnFiles = new List<string>();
                 var csprojFiles = new List<string>();
 
+                var remoteRepos = new List<object>();
                 if (solutionDiscoverer != null)
                 {
                     var sols = await solutionDiscoverer.DiscoverSolutionsAsync(rootPath);
-                    slnFiles = sols.ToList();
+                    // collect local solution file paths for further processing
+                    slnFiles = sols.Where(s => s.Source == "FileSystem" && !string.IsNullOrWhiteSpace(s.LocalPath)).Select(s => s.LocalPath!).ToList();
+
+                    // record remote GitHub repositories for later insertion into inventory summary
+                    remoteRepos = sols.Where(s => s.Source == "GitHub" && !string.IsNullOrWhiteSpace(s.RepoUrl)).Select(s => new { s.RepoUrl, s.IsArchived }).Cast<object>().ToList();
                 }
                 else
                 {
@@ -49,10 +62,26 @@ namespace SharpShift.Inventory.Cli
 
                 var solutionName = slnFiles.FirstOrDefault() is string s ? Path.GetFileNameWithoutExtension(s) : new DirectoryInfo(rootPath).Name;
 
+                if (clean)
+                {
+                    try
+                    {
+                        if (File.Exists(outputFile))
+                            File.Delete(outputFile);
+                    }
+                    catch { }
+                    // clear evaluator cache
+                    SharpShift.Inventory.Core.Utilities.ProjectEvaluator.ClearCache();
+                    Console.WriteLine("Performed clean restart: removed output and cleared evaluator cache.");
+                }
+
                 var inventory = new SolutionInventory
                 {
                     SolutionName = solutionName
                 };
+
+                if (remoteRepos.Count > 0)
+                    inventory.Summary["remoteRepositories"] = remoteRepos;
 
                 foreach (var proj in csprojFiles)
                 {

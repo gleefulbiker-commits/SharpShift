@@ -9,4 +9,5 @@
   <Project Path="SharpShift.Inventory.KnowledgeBase/SharpShift.Inventory.KnowledgeBase.csproj" />
   <Project Path="SharpShift.Inventory.Storage/SharpShift.Inventory.Storage.csproj" />
   <Project Path="SharpShift.Inventory.Tests/SharpShift.Inventory.Tests.csproj" />
+  <Project Path="SharpShift/SharpShift.csproj" Id="12a5f048-04c9-4285-ac05-79ca5ace0609" />
 </Solution>
