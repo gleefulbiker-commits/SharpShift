@@ -1,11 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 using SharpShift.Inventory.Core.Models;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace SharpShift.Inventory.Cli
 {
@@ -24,6 +21,13 @@ namespace SharpShift.Inventory.Cli
             bool clean = false,
             bool analyzeCloned = false)
         {
+
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+            };
+
             try
             {
                 if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
@@ -53,7 +57,7 @@ namespace SharpShift.Inventory.Cli
                 if (projectDiscoverer != null)
                 {
                     var projects = await projectDiscoverer.DiscoverProjectsAsync(rootPath);
-                    csprojFiles = projects is null ? new List<string>() : projects.Select(p => p.ProjectPath).ToList();
+                    csprojFiles = projects?.Select(p => p.ProjectPath).ToList() ?? new ();
                 }
                 else
                 {
@@ -105,8 +109,8 @@ namespace SharpShift.Inventory.Cli
                             }
                             else if (props.TryGetValue("TargetFrameworks", out var tfs) && !string.IsNullOrWhiteSpace(tfs))
                             {
-                                var first = tfs.Split(';').FirstOrDefault();
-                                projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(first);
+                                    var first = tfs.Split(';').FirstOrDefault();
+                                    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(first);
                             }
                             else if (props.TryGetValue("TargetFrameworkVersion", out var legacy) && !string.IsNullOrWhiteSpace(legacy))
                             {
@@ -181,8 +185,6 @@ namespace SharpShift.Inventory.Cli
                 }
 
                 inventory.Summary["projectCount"] = inventory.Projects.Count;
-
-                var options = new JsonSerializerOptions { WriteIndented = true };
                 var json = JsonSerializer.Serialize(inventory, options);
 
                 File.WriteAllText(outputFile, json);
@@ -199,12 +201,17 @@ namespace SharpShift.Inventory.Cli
         private static string NormalizeLegacyFramework(string legacy)
         {
             // legacy like v4.6.2
-            if (legacy.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(legacy))
             {
-                return $".NET Framework {legacy.Substring(1)}";
+                return ".NET Framework";
             }
 
-            return legacy;
+            if (legacy.Length > 1 && legacy[0] == 'v')
+            {
+                return $".NET Framework {legacy[1]}";
+            }
+
+            return $".NET Framework {legacy}";
         }
 
         private static string NormalizeSdkFramework(string tf)
@@ -260,3 +267,4 @@ namespace SharpShift.Inventory.Cli
         }
     }
 }
+
