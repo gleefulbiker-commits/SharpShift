@@ -12,10 +12,10 @@ namespace SharpShift.Inventory.Discovery
     /// </summary>
     public class FileSystemSolutionDiscoverer : ISolutionDiscoverer
     {
-        public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string rootPath)
+        public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath)
         {
             if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
-                return Task.FromResult<IEnumerable<SolutionDiscoveryEntry>>(Enumerable.Empty<SolutionDiscoveryEntry>());
+                return Task.FromResult<IEnumerable<SolutionDiscoveryEntry>>([]);
 
             var slnFiles = Directory.EnumerateFiles(rootPath, "*.sln", SearchOption.AllDirectories);
             var slnxFiles = Directory.EnumerateFiles(rootPath, "*.slnx", SearchOption.AllDirectories);

@@ -22,24 +22,24 @@ namespace SharpShift.Inventory.Discovery
         {
             _http = httpClient ?? new HttpClient();
             // Ensure a User-Agent header for GitHub API
-            if (!_http.DefaultRequestHeaders.UserAgent.Any())
+            if (_http.DefaultRequestHeaders.UserAgent.Count <= 0)
                 _http.DefaultRequestHeaders.UserAgent.ParseAdd("SharpShift-Inventory/1.0");
 
             var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
-            if (!string.IsNullOrWhiteSpace(token) && !_http.DefaultRequestHeaders.Authorization?.Scheme?.Equals("Bearer", StringComparison.OrdinalIgnoreCase) == true)
+            if (!string.IsNullOrWhiteSpace(token) && !string.Equals(_http.DefaultRequestHeaders.Authorization?.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase))
             {
                 // Use token if present
                 _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             }
         }
 
-        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string rootPath)
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null)
         {
             var accountsEnv = Environment.GetEnvironmentVariable("GITHUB_ACCOUNTS");
             if (string.IsNullOrWhiteSpace(accountsEnv))
-                return Enumerable.Empty<SolutionDiscoveryEntry>();
+                return [];
 
-            var accounts = accountsEnv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).Where(a => !string.IsNullOrWhiteSpace(a));
+            var accounts = accountsEnv.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).Where(a => !string.IsNullOrWhiteSpace(a));
             var results = new List<SolutionDiscoveryEntry>();
 
             foreach (var account in accounts)
@@ -128,7 +128,7 @@ namespace SharpShift.Inventory.Discovery
                                 try
                                 {
                                     var safeOwner = string.IsNullOrWhiteSpace(owner) ? "unknown" : owner;
-                                    var targetDir = System.IO.Path.Combine(cloneBase, safeOwner, name);
+                                    var targetDir = System.IO.Path.Combine(cloneBase, safeOwner, name!);
                                     if (!System.IO.Directory.Exists(targetDir))
                                     {
                                         // Use GitHelper to perform clone (centralized checks and timeout handling)

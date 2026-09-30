@@ -10,14 +10,9 @@ using System.Net;
 namespace SharpShift.Inventory.Tests
 {
     // Minimal fake handler for HttpClient to return canned GitHub API responses.
-    public class FakeHttpMessageHandler : HttpMessageHandler
+    public class FakeHttpMessageHandler(string response) : HttpMessageHandler
     {
-        private readonly string _response;
-
-        public FakeHttpMessageHandler(string response)
-        {
-            _response = response;
-        }
+        private readonly string _response = response;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
         {

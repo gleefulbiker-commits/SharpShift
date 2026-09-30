@@ -23,7 +23,7 @@ namespace SharpShift.Inventory.Discovery
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string rootPath)
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath)
         {
             var results = new List<SolutionDiscoveryEntry>();
 

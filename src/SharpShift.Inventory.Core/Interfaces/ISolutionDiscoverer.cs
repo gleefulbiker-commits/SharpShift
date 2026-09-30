@@ -14,6 +14,6 @@ namespace SharpShift.Inventory.Core.Interfaces
         /// </summary>
         /// <param name="rootPath">Root folder to search (may be unused by remote discoverers).</param>
         /// <returns>List of discovery entries describing local solution files or remote repositories.</returns>
-        Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string rootPath);
+        Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null);
     }
 }

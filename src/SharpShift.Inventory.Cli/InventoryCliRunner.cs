@@ -9,9 +9,15 @@ namespace SharpShift.Inventory.Cli
     /// <summary>
     /// Minimal runner that discovers solutions/projects, extracts project name and framework, and writes inventory JSON.
     /// </summary>
-    public static class InventoryCliRunner
+    public static partial class InventoryCliRunner
     {
-        public static async Task<int> RunAsync(
+        public static readonly JsonSerializerOptions options = new ()
+        {
+            WriteIndented = true,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        };
+
+    public static async Task<int> RunAsync(
             string rootPath,
             string outputFile,
             SharpShift.Inventory.Core.Interfaces.ISolutionDiscoverer? solutionDiscoverer = null,
@@ -21,13 +27,6 @@ namespace SharpShift.Inventory.Cli
             bool clean = false,
             bool analyzeCloned = false)
         {
-
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-            };
-
             try
             {
                 if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
@@ -44,24 +43,24 @@ namespace SharpShift.Inventory.Cli
                 {
                     var sols = await solutionDiscoverer.DiscoverSolutionsAsync(rootPath);
                     // collect local solution file paths for further processing
-                    slnFiles = sols.Where(s => s.Source == "FileSystem" && !string.IsNullOrWhiteSpace(s.LocalPath)).Select(s => s.LocalPath!).ToList();
+                    slnFiles = [..sols.Where(s => s.Source == "FileSystem" && !string.IsNullOrWhiteSpace(s.LocalPath)).Select(s => s.LocalPath!)];
 
                     // record remote GitHub repositories for later insertion into inventory summary
-                    remoteRepos = sols.Where(s => s.Source == "GitHub" && !string.IsNullOrWhiteSpace(s.RepoUrl)).Select(s => new { s.RepoUrl, s.IsArchived }).Cast<object>().ToList();
+                    remoteRepos = [..sols.Where(s => s.Source == "GitHub" && !string.IsNullOrWhiteSpace(s.RepoUrl)).Select(s => new { s.RepoUrl, s.IsArchived }).Cast<object>()];
                 }
                 else
                 {
-                    slnFiles = Directory.EnumerateFiles(rootPath, "*.sln", SearchOption.AllDirectories).ToList();
+                    slnFiles = [..Directory.EnumerateFiles(rootPath, "*.sln", SearchOption.AllDirectories)];
                 }
 
                 if (projectDiscoverer != null)
                 {
                     var projects = await projectDiscoverer.DiscoverProjectsAsync(rootPath);
-                    csprojFiles = projects?.Select(p => p.ProjectPath).ToList() ?? new ();
+                    csprojFiles = projects?.Select(p => p.ProjectPath).ToList() ?? [];
                 }
                 else
                 {
-                    csprojFiles = Directory.EnumerateFiles(rootPath, "*.csproj", SearchOption.AllDirectories).ToList();
+                    csprojFiles = [..Directory.EnumerateFiles(rootPath, "*.csproj", SearchOption.AllDirectories)];
                 }
 
                 var solutionName = slnFiles.FirstOrDefault() is string s ? Path.GetFileNameWithoutExtension(s) : new DirectoryInfo(rootPath).Name;
@@ -237,7 +236,7 @@ namespace SharpShift.Inventory.Cli
             if (map.TryGetValue(tf, out var friendly))
                 return friendly;
 
-            var m = System.Text.RegularExpressions.Regex.Match(tf, "^net(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var m = NetRegex().Match(tf);
             if (m.Success)
             {
                 var major = m.Groups[1].Value;
@@ -247,7 +246,7 @@ namespace SharpShift.Inventory.Cli
                 return $".NET {major}.0";
             }
 
-            m = System.Text.RegularExpressions.Regex.Match(tf, "^netcoreapp(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            m = NetCoreAppRegex().Match(tf);
             if (m.Success)
             {
                 var major = m.Groups[1].Value;
@@ -255,7 +254,7 @@ namespace SharpShift.Inventory.Cli
                 return $".NET Core {major}.{minor}";
             }
 
-            m = System.Text.RegularExpressions.Regex.Match(tf, "^netstandard(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            m = NetStandardRegex().Match(tf);
             if (m.Success)
             {
                 var major = m.Groups[1].Value;
@@ -265,6 +264,15 @@ namespace SharpShift.Inventory.Cli
 
             return tf;
         }
+
+        [System.Text.RegularExpressions.GeneratedRegex("^net(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+        private static partial System.Text.RegularExpressions.Regex NetRegex();
+
+        [System.Text.RegularExpressions.GeneratedRegex("^netcoreapp(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+        private static partial System.Text.RegularExpressions.Regex NetCoreAppRegex();
+
+        [System.Text.RegularExpressions.GeneratedRegex("^netstandard(\\d+)(\\.(\\d+))?", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+        private static partial System.Text.RegularExpressions.Regex NetStandardRegex();
     }
 }
 
