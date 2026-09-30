@@ -186,8 +186,9 @@ namespace SharpShift.Inventory.Cli
                 inventory.Summary["projectCount"] = inventory.Projects.Count;
                 var json = JsonSerializer.Serialize(inventory, options);
 
-                File.WriteAllText(outputFile, json);
-                Console.WriteLine($"Wrote inventory to {outputFile}");
+                var fullPath = Path.Combine(rootPath, outputFile);
+                File.WriteAllText(fullPath, json);
+                Console.WriteLine($"Wrote inventory to {fullPath}");
                 return 0;
             }
             catch (Exception ex)
