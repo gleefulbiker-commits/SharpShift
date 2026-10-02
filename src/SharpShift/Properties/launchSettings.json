@@ -2,7 +2,7 @@
   "profiles": {
     "SharpShift": {
       "commandName": "Project",
-      "commandLineArgs": "scan C:\\Users\\Kerry\\source\\AzDevOpsDemoGenerator"
+      "commandLineArgs": "scan C:\\Users\\Kerry\\source\\repos\\AzureFeatureFlags"
     }
   }
 }

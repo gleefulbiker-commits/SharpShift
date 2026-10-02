@@ -53,14 +53,14 @@ namespace SharpShift.Inventory.Core.Utilities
                 if (projectType == null)
                     return null;
 
-                var projObj = Activator.CreateInstance(projectType, new object[] { projectPath });
-                var getProp = projectType.GetMethod("GetPropertyValue", new[] { typeof(string) });
+                var projObj = Activator.CreateInstance(projectType, [ projectPath ]);
+                var getProp = projectType.GetMethod("GetPropertyValue", [ typeof(string) ]);
                 var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                string[] keys = { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" };
+                string[] keys = [ "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" ];
                 foreach (var k in keys)
                 {
-                    if (getProp?.Invoke(projObj, new object[] { k }) is string v && !string.IsNullOrWhiteSpace(v))
+                    if (getProp?.Invoke(projObj, [ k ]) is string v && !string.IsNullOrWhiteSpace(v))
                         props[k] = v;
                 }
 

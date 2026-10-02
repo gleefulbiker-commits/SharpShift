@@ -30,13 +30,13 @@ namespace SharpShift.Inventory.Core.Models
         /// <summary>
         /// Additional metadata for the project.
         /// </summary>
-        public Dictionary<string, object> Metadata { get; set; } = new();
+        public Dictionary<string, object> Metadata { get; set; } = [];
 
         /// <summary>
         /// Discovered dependencies for the project (if analyzers run or evaluator provided items).
         /// This is included in the serialized inventory output so dependency details (HintPath, PublicKeyToken, OtherMetadata) are persisted.
         /// </summary>
-        public List<DependencyInventory> Dependencies { get; set; } = new();
+        public List<DependencyInventory> Dependencies { get; set; } = [];
 
         /// <summary>
         /// Local path when project was discovered via cloning (GitHub discovery clones).
