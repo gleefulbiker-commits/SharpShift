@@ -99,56 +99,56 @@ namespace SharpShift.Inventory.Cli
                         // Try MSBuild evaluation first
                         try
                         {
-                        var props = SharpShift.Inventory.Core.Utilities.ProjectEvaluator.EvaluateProjectProperties(proj);
-                        if (props != null)
-                        {
-                            if (props.TryGetValue("TargetFramework", out var tf) && !string.IsNullOrWhiteSpace(tf))
+                            var props = SharpShift.Inventory.Core.Utilities.ProjectEvaluator.EvaluateProjectProperties(proj);
+                            if (props != null)
                             {
-                                projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(tf);
-                            }
-                            else if (props.TryGetValue("TargetFrameworks", out var tfs) && !string.IsNullOrWhiteSpace(tfs))
-                            {
-                                    var first = tfs.Split(';').FirstOrDefault();
-                                    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(first);
-                            }
-                            else if (props.TryGetValue("TargetFrameworkVersion", out var legacy) && !string.IsNullOrWhiteSpace(legacy))
-                            {
-                                projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(legacy);
-                            }
-                            else
-                            {
-                                // leave blank
-                            }
-                        }
-                        else
-                        {
-                            if (requireMsBuild)
-                            {
-                                Console.Error.WriteLine($"MSBuild evaluation required but not available for project: {proj}");
-                                return 4;
-                            }
-                            // fallback to XML parsing
-                            var doc = XDocument.Load(proj);
-                            var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
-
-                            var tf = doc.Descendants(ns + "TargetFramework").FirstOrDefault()?.Value;
-                            if (string.IsNullOrWhiteSpace(tf))
-                            {
-                                var tfs = doc.Descendants(ns + "TargetFrameworks").FirstOrDefault()?.Value;
-                                if (!string.IsNullOrWhiteSpace(tfs))
-                                    tf = tfs.Split(';').FirstOrDefault();
-                            }
-
-                            if (string.IsNullOrWhiteSpace(tf))
-                            {
-                                var legacy = doc.Descendants(ns + "TargetFrameworkVersion").FirstOrDefault()?.Value;
-                                if (!string.IsNullOrWhiteSpace(legacy)) projInv.Framework = NormalizeLegacyFramework(legacy);
+                                if (props.TryGetValue("TargetFramework", out var tf) && !string.IsNullOrWhiteSpace(tf))
+                                {
+                                    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(tf);
+                                }
+                                else if (props.TryGetValue("TargetFrameworks", out var tfs) && !string.IsNullOrWhiteSpace(tfs))
+                                {
+                                        var first = tfs.Split(';').FirstOrDefault();
+                                        projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(first);
+                                }
+                                else if (props.TryGetValue("TargetFrameworkVersion", out var legacy) && !string.IsNullOrWhiteSpace(legacy))
+                                {
+                                    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(legacy);
+                                }
+                                else
+                                {
+                                    // leave blank
+                                }
                             }
                             else
                             {
-                                projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(tf);
+                                if (requireMsBuild)
+                                {
+                                    Console.Error.WriteLine($"MSBuild evaluation required but not available for project: {proj}");
+                                    return 4;
+                                }
+                                // fallback to XML parsing
+                                var doc = XDocument.Load(proj);
+                                var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
+
+                                var tf = doc.Descendants(ns + "TargetFramework").FirstOrDefault()?.Value;
+                                if (string.IsNullOrWhiteSpace(tf))
+                                {
+                                    var tfs = doc.Descendants(ns + "TargetFrameworks").FirstOrDefault()?.Value;
+                                    if (!string.IsNullOrWhiteSpace(tfs))
+                                        tf = tfs.Split(';').FirstOrDefault();
+                                }
+
+                                if (string.IsNullOrWhiteSpace(tf))
+                                {
+                                    var legacy = doc.Descendants(ns + "TargetFrameworkVersion").FirstOrDefault()?.Value;
+                                    if (!string.IsNullOrWhiteSpace(legacy)) projInv.Framework = NormalizeLegacyFramework(legacy);
+                                }
+                                else
+                                {
+                                    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(tf);
+                                }
                             }
-                        }
                         }
                         catch
                         {

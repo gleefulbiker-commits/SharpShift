@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Diagnostics;
+using System.Linq;
+using System.Xml.Linq;
 
 namespace SharpShift.Inventory.Core.Utilities
 {
@@ -46,12 +49,20 @@ namespace SharpShift.Inventory.Core.Utilities
                         register?.Invoke(null, null);
                         _msbuildRegistered = true;
                     }
-                    catch { }
+                    catch
+                    {
+                        // Suggestion: Log or handle the exception if needed, but continue to attempt project evaluation without MSBuild registration.
+                    }
                 }
 
                 var projectType = Type.GetType("Microsoft.Build.Evaluation.Project, Microsoft.Build");
-                if (projectType == null)
-                    return null;
+                if (projectType is null)
+                {
+                    // Microsoft.Build types not available in-process; fall back to dotnet CLI preprocessing
+                    var cliResult = EvaluateProjectWithDotnetCli(projectPath);
+                    _cache[projectPath] = cliResult;
+                    return cliResult;
+                }
 
                 var projObj = Activator.CreateInstance(projectType, new object[] { projectPath });
                 var getProp = projectType.GetMethod("GetPropertyValue", new[] { typeof(string) });
@@ -105,13 +116,19 @@ namespace SharpShift.Inventory.Core.Utilities
                                         }
                                     }
                                 }
-                                catch { }
+                                catch
+                                {
+                                    // Suggestion: Log or handle the exception if needed, but continue to attempt project evaluation without MSBuild registration.
+                                }
                                 idx++;
                             }
                         }
                     }
                 }
-                catch { }
+                catch
+                {
+                    // Suggestion: Log or handle the exception if needed, but continue to attempt project evaluation without MSBuild registration.
+                }
 
                 try
                 {
@@ -120,14 +137,126 @@ namespace SharpShift.Inventory.Core.Utilities
                     var unload = pc?.GetType().GetMethod("UnloadAllProjects");
                     unload?.Invoke(pc, null);
                 }
-                catch { }
+                catch
+                {
+                    // Suggestion: Log or handle the exception if needed, but continue to attempt project evaluation without MSBuild registration.
+                }
 
                 _cache[projectPath] = props;
                 return props;
             }
             catch
             {
-                _cache[projectPath] = null;
+                // Reflection-path failed unexpectedly; attempt CLI fallback before giving up
+                try
+                {
+                    var cliResult = EvaluateProjectWithDotnetCli(projectPath);
+                    _cache[projectPath] = cliResult;
+                    return cliResult;
+                }
+                catch
+                {
+                    _cache[projectPath] = null;
+                    return null;
+                }
+            }
+        }
+
+        // Attempt to evaluate project properties by invoking the dotnet CLI to produce a preprocessed project
+        private static IReadOnlyDictionary<string, string>? EvaluateProjectWithDotnetCli(string projectPath)
+        {
+            try
+            {
+                // Verify dotnet exists
+                var verInfo = new ProcessStartInfo
+                {
+                    FileName = "dotnet",
+                    Arguments = "--version",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var proc = Process.Start(verInfo))
+                {
+                    if (proc == null)
+                        return null;
+                    proc.WaitForExit(5000);
+                    if (proc.ExitCode != 0)
+                        return null;
+                }
+
+                var preprocPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".pp.xml");
+                var args = $"msbuild \"{projectPath}\" /pp:\"{preprocPath}\" /verbosity:quiet /nologo";
+                var start = new ProcessStartInfo
+                {
+                    FileName = "dotnet",
+                    Arguments = args,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var p = Process.Start(start))
+                {
+                    if (p == null)
+                        return null;
+                    // wait up to 30s
+                    p.WaitForExit(30000);
+                    if (!File.Exists(preprocPath) || p.ExitCode != 0)
+                    {
+                        try { if (File.Exists(preprocPath)) File.Delete(preprocPath); } catch { }
+                        return null;
+                    }
+                }
+
+                var doc = XDocument.Load(preprocPath);
+                var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                // Extract properties of interest
+                string[] keys = { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" };
+                foreach (var k in keys)
+                {
+                    var el = doc.Descendants().FirstOrDefault(x => string.Equals(x.Name.LocalName, k, StringComparison.OrdinalIgnoreCase));
+                    if (el != null && !string.IsNullOrWhiteSpace(el.Value))
+                        props[k] = el.Value.Trim();
+                }
+
+                // Extract item groups
+                int idx = 0;
+                var itemGroupNodes = doc.Descendants().Where(x => string.Equals(x.Name.LocalName, "ItemGroup", StringComparison.OrdinalIgnoreCase));
+                foreach (var ig in itemGroupNodes)
+                {
+                    foreach (var item in ig.Elements())
+                    {
+                        var itemTypeName = item.Name.LocalName;
+                        var includeAttr = item.Attribute("Include")?.Value ?? item.Attribute("Update")?.Value;
+                        if (string.IsNullOrWhiteSpace(itemTypeName) || string.IsNullOrWhiteSpace(includeAttr))
+                            continue;
+
+                        props[$"Item.{idx}.Type"] = itemTypeName;
+                        props[$"Item.{idx}.Include"] = includeAttr;
+
+                        // metadata
+                        foreach (var md in item.Elements())
+                        {
+                            var name = md.Name.LocalName;
+                            var value = md.Value;
+                            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(value))
+                                props[$"Item.{idx}.Metadata.{name}"] = value.Trim();
+                        }
+
+                        idx++;
+                    }
+                }
+
+                try { if (File.Exists(preprocPath)) File.Delete(preprocPath); } catch { }
+                return props;
+            }
+            catch
+            {
                 return null;
             }
         }
