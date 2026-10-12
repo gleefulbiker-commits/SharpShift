@@ -119,6 +119,11 @@ namespace SharpShift.Inventory.Cli
                                 {
                                     // leave blank
                                 }
+
+                                if (!string.IsNullOrWhiteSpace(props["TargetFramework"]))
+                                {
+                                    projInv.Dependencies = new(); // props["PackageReference"]; props.Where(kvp => kvp.Key.Equals("TargetFramework"))
+                                }
                             }
                             else
                             {

@@ -20,17 +20,8 @@ namespace SharpShift
 
             if (args.Length >= 2 && args[0].Equals("scan", StringComparison.OrdinalIgnoreCase))
             {
-                var path = args[1];
-                var output = "inventory.json";
-
-                for (int i = 2; i < args.Length; i++)
-                {
-                    if (args[i] == "--output" && i + 1 < args.Length)
-                    {
-                        output = args[i + 1];
-                        i++;
-                    }
-                }
+                // Consolidate argument parsing into ParseArguments to avoid duplication
+                var (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned) = ParseArguments(args);
 
                 // Configure DI
                 var services = new ServiceCollection();
@@ -41,32 +32,6 @@ namespace SharpShift
 
                 var sol = provider.GetRequiredService<ISolutionDiscoverer>();
                 var proj = provider.GetRequiredService<IProjectDiscoverer>();
-
-                // Allow optional flag to require MSBuild-based evaluation
-                var requireMsBuild = false;
-                int retryAttempts = 0;
-                bool clean = false;
-                bool analyzeCloned = false;
-                for (int i = 2; i < args.Length; i++)
-                {
-                    if (args[i] == "--require-msbuild")
-                    {
-                        requireMsBuild = true;
-                    }
-                    else if (args[i] == "--retry" && i + 1 < args.Length && int.TryParse(args[i + 1], out var r))
-                    {
-                        retryAttempts = r;
-                        i++;
-                    }
-                    else if (args[i] == "--clean")
-                    {
-                        clean = true;
-                    }
-                    else if (args[i] == "--analyze-cloned")
-                    {
-                        analyzeCloned = true;
-                    }
-                }
 
                 return await InventoryCliRunner.RunAsync(path, output, sol, proj, requireMsBuild, retryAttempts, clean, analyzeCloned);
             }
@@ -96,28 +61,21 @@ namespace SharpShift
 
             for (int i = 2; i < args.Length; i++)
             {
-                if (args[i] == "--output" && i + 1 < args.Length)
+                var token = args[i];
+
+                // Use a switch expression to select a local handler that performs side-effects
+                // and returns how many extra positions the loop should advance (0 or 1).
+                Func<int> handler = token switch
                 {
-                    output = args[i + 1];
-                    i++;
-                }
-                else if (args[i] == "--require-msbuild")
-                {
-                    requireMsBuild = true;
-                }
-                else if (args[i] == "--retry" && i + 1 < args.Length && int.TryParse(args[i + 1], out var r))
-                {
-                    retryAttempts = r;
-                    i++;
-                }
-                else if (args[i] == "--clean")
-                {
-                    clean = true;
-                }
-                else if (args[i] == "--analyze-cloned")
-                {
-                    analyzeCloned = true;
-                }
+                    "--output" when i + 1 < args.Length => () => { output = args[i + 1]; return 1; },
+                    "--require-msbuild" => () => { requireMsBuild = true; return 0; },
+                    "--retry" when i + 1 < args.Length => () => { if (int.TryParse(args[i + 1], out var rr)) retryAttempts = rr; return 1; },
+                    "--clean" => () => { clean = true; return 0; },
+                    "--analyze-cloned" => () => { analyzeCloned = true; return 0; },
+                    _ => () => 0,
+                };
+
+                i += handler();
             }
 
             return (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned);

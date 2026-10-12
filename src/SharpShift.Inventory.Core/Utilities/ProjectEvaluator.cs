@@ -41,7 +41,7 @@ namespace SharpShift.Inventory.Core.Utilities
             try
             {
                 var locatorType = Type.GetType("Microsoft.Build.Locator.MSBuildLocator, Microsoft.Build.Locator");
-                if (locatorType != null && !_msbuildRegistered)
+                if (locatorType is not null && !_msbuildRegistered)
                 {
                     try
                     {
@@ -68,7 +68,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 var getProp = projectType.GetMethod("GetPropertyValue", new[] { typeof(string) });
                 var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                string[] keys = { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" };
+                string[] keys = { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion", "PackageReference" };
                 foreach (var k in keys)
                 {
                     if (getProp?.Invoke(projObj, new object[] { k }) is string v && !string.IsNullOrWhiteSpace(v))
