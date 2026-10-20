@@ -13,7 +13,7 @@ namespace SharpShift.Inventory.Core.Utilities
     /// </summary>
     public static class ProjectEvaluator
     {
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, IReadOnlyDictionary<string, string>?> _cache = new();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, IDictionary<string, string>?> _cache = new();
         private static bool _msbuildRegistered = false;
 
         /// <summary>
@@ -30,7 +30,7 @@ namespace SharpShift.Inventory.Core.Utilities
         /// Returns a dictionary of property name->value when successful; otherwise null.
         /// Caches results per project path to reduce overhead.
         /// </summary>
-        public static IReadOnlyDictionary<string, string>? EvaluateProjectProperties(string projectPath)
+        public static IDictionary<string, string>? EvaluateProjectProperties(string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || !File.Exists(projectPath))
                 return null;
@@ -64,14 +64,14 @@ namespace SharpShift.Inventory.Core.Utilities
                     return cliResult;
                 }
 
-                var projObj = Activator.CreateInstance(projectType, new object[] { projectPath });
-                var getProp = projectType.GetMethod("GetPropertyValue", new[] { typeof(string) });
+                var projObj = Activator.CreateInstance(projectType, [projectPath]);
+                var getProp = projectType.GetMethod("GetPropertyValue", [typeof(string)]);
                 var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-                string[] keys = { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion", "PackageReference" };
+                var keys = new[] { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion", "PackageReference" };
                 foreach (var k in keys)
                 {
-                    if (getProp?.Invoke(projObj, new object[] { k }) is string v && !string.IsNullOrWhiteSpace(v))
+                    if (getProp?.Invoke(projObj, [k]) is string v && !string.IsNullOrWhiteSpace(v))
                         props[k] = v;
                 }
 
@@ -85,11 +85,28 @@ namespace SharpShift.Inventory.Core.Utilities
                         int idx = 0;
                         foreach (var item in items)
                         {
+                            if(item == null)
+                                continue;
+
                             var itemType = item.GetType();
                             var itemTypeProp = itemType.GetProperty("ItemType");
                             var evaluatedIncludeProp = itemType.GetProperty("EvaluatedInclude");
 
-                            if (itemTypeProp?.GetValue(item) is string itemTypeName &&
+                            var keyValue = itemType?.GetProperty("Key")?.GetValue(item)?.ToString();
+
+                            if (keyValue?.Equals("PackageReference") ?? false)
+                            {
+                                var itemValue = itemType?.GetProperty("Value")?.GetValue(item);
+                                foreach (var val in (itemValue as System.Collections.IEnumerable) ?? Enumerable.Empty<object>())
+                                {
+                                    var includeName = val.GetType().GetProperty("EvaluatedInclude")?.GetValue(val);
+                                    props[$"Item.{idx}.Type"] = "PackageReference";
+                                    //props[$"Item.{idx}.Include"] = includeName;
+                                }
+                                idx++;
+                                continue;
+                            }
+                            else if (itemTypeProp?.GetValue(item) is string itemTypeName &&
                                 evaluatedIncludeProp?.GetValue(item) is string include &&
                                 !string.IsNullOrWhiteSpace(itemTypeName) &&
                                 !string.IsNullOrWhiteSpace(include))
@@ -100,7 +117,7 @@ namespace SharpShift.Inventory.Core.Utilities
                                 // attempt to extract metadata values for common metadata names (Version, HintPath)
                                 try
                                 {
-                                    var metadataProp = itemType.GetProperty("Metadata");
+                                    var metadataProp = itemType?.GetProperty("Metadata");
                                     if (metadataProp?.GetValue(item) is System.Collections.IEnumerable metadata)
                                     {
                                         foreach (var md in metadata)
@@ -120,8 +137,8 @@ namespace SharpShift.Inventory.Core.Utilities
                                 {
                                     // Suggestion: Log or handle the exception if needed, but continue to attempt project evaluation without MSBuild registration.
                                 }
-                                idx++;
                             }
+                            idx++;
                         }
                     }
                 }
@@ -163,7 +180,7 @@ namespace SharpShift.Inventory.Core.Utilities
         }
 
         // Attempt to evaluate project properties by invoking the dotnet CLI to produce a preprocessed project
-        private static IReadOnlyDictionary<string, string>? EvaluateProjectWithDotnetCli(string projectPath)
+        private static Dictionary<string, string>? EvaluateProjectWithDotnetCli(string projectPath)
         {
             try
             {
@@ -216,7 +233,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                 // Extract properties of interest
-                string[] keys = { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" };
+                var keys = new[] { "TargetFramework", "TargetFrameworks", "TargetFrameworkVersion" };
                 foreach (var k in keys)
                 {
                     var el = doc.Descendants().FirstOrDefault(x => string.Equals(x.Name.LocalName, k, StringComparison.OrdinalIgnoreCase));

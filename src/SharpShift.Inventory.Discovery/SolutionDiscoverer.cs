@@ -12,8 +12,8 @@ namespace SharpShift.Inventory.Discovery
     /// </summary>
     public class SolutionDiscoverer : ISolutionDiscoverer
     {
-        private readonly ISolutionDiscoverer _fsDiscoverer = new FileSystemSolutionDiscoverer();
-        private readonly ISolutionDiscoverer _ghDiscoverer;
+        private readonly FileSystemSolutionDiscoverer _fsDiscoverer = new ();
+        private readonly GitHubSolutionDiscoverer _ghDiscoverer;
 
         public SolutionDiscoverer()
         {
