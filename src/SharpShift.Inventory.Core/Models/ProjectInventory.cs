@@ -15,7 +15,7 @@ namespace SharpShift.Inventory.Core.Models
         /// <summary>
         /// Detected project type (e.g., "ASP.NET MVC", "Class Library").
         /// </summary>
-        public string ProjectType { get; set; } = "Unknown";
+        public string ProjectType { get; set; } = "Class Library";
 
         /// <summary>
         /// Normalized framework string (e.g., ".NET Framework 4.6.2").

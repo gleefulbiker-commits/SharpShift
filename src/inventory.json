@@ -1,0 +1,107 @@
+{
+  "SolutionName": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.slnx",
+  "Projects": [
+    {
+      "ProjectName": "SharpShift.Inventory.Core",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.Core/SharpShift.Inventory.Core.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.Cli",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.Cli/SharpShift.Inventory.Cli.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.Discovery",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.Discovery/SharpShift.Inventory.Discovery.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.ProjectAnalysis",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.ProjectAnalysis/SharpShift.Inventory.ProjectAnalysis.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.DependencyAnalysis",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.DependencyAnalysis/SharpShift.Inventory.DependencyAnalysis.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.RiskAnalysis",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.RiskAnalysis/SharpShift.Inventory.RiskAnalysis.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.Reporting",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.Reporting/SharpShift.Inventory.Reporting.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.KnowledgeBase",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.KnowledgeBase/SharpShift.Inventory.KnowledgeBase.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.Storage",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.Storage/SharpShift.Inventory.Storage.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift.Inventory.Tests",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift.Inventory.Tests/SharpShift.Inventory.Tests.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    },
+    {
+      "ProjectName": "SharpShift",
+      "ProjectType": "Class Library",
+      "Framework": ".NET 10.0",
+      "ProjectPath": "C:\\Users\\Kerry\\OneDrive\\Documents\\Alemnor\\Projects\\Modernization\\SharpShift\\src\\SharpShift/SharpShift.csproj",
+      "Metadata": {},
+      "Dependencies": [],
+      "LocalPath": null
+    }
+  ],
+  "Summary": {
+    "projectCount": 11
+  }
+}

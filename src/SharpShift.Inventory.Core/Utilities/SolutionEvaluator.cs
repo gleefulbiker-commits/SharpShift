@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -13,6 +15,7 @@ namespace SharpShift.Inventory.Core.Utilities
     /// </summary>
     public static partial class SolutionEvaluator
     {
+        private static readonly JsonSerializerOptions _jsonOptions = new() { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, IDictionary<string, string>?>> _cache = new(StringComparer.OrdinalIgnoreCase);
 
         [GeneratedRegex("<\\s*Project\\b(?:\\s+Sdk\\s*=\\s*(?:\"(?<sdk>[^\"]*)\"|'(?<sdk>[^']*)'))?[^>]*>", RegexOptions.Compiled)]
@@ -31,7 +34,7 @@ namespace SharpShift.Inventory.Core.Utilities
         /// Parse the provided .sln file and return absolute paths to referenced project files.
         /// Returns an empty list when the solution path is invalid or contains no projects.
         /// </summary>
-        public static Dictionary<string, IDictionary<string, string>?> ParseSolutionProjectPaths(Dictionary<string, IDictionary<string, string>?> solutionDictionary)
+        public static Dictionary<string, IDictionary<string, string>?> ParseSolutionProjectPaths(string solutionDictionary)
         {
             //if (string.IsNullOrWhiteSpace(projectPath) || !File.Exists(projectPath))
             //    return solutionDictionary;
@@ -79,7 +82,7 @@ namespace SharpShift.Inventory.Core.Utilities
             //    // ignore invalid path resolutions
             //}
 
-            return solutionDictionary;
+            return new Dictionary<string, IDictionary<string, string>?>();
         }
 
         /// <summary>
@@ -95,15 +98,15 @@ namespace SharpShift.Inventory.Core.Utilities
             // Evaluate the solution for its properties.
 
             // Parse the solution file to get project paths
-            var projects = ParseSolutionProjectPaths(solutionDictionary);
-            var result = new Dictionary<string, IDictionary<string, string>?>(StringComparer.OrdinalIgnoreCase);
+            //var projects = ParseSolutionProjectPaths(solutionDictionary);
+            //var result = new Dictionary<string, IDictionary<string, string>?>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var kvp in projects)
+            foreach (var kvp in solutionDictionary.Where(kvp => kvp.Value.Equals("Project")))
             {
                 try
                 {
                     var projProps = kvp.Value;
-                    ProjectEvaluator.EvaluateProjectProperties(projProps["Project"]);
+                    ProjectEvaluator.EvaluateProjectProperties(projProps);
                 }
                 catch
                 {
@@ -135,9 +138,8 @@ namespace SharpShift.Inventory.Core.Utilities
             {
                 if(Path.GetExtension(solutionPath).Equals(".slnx", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    var slnxProps = SolutionEvaluator.EvaluateSlnxProperties(solutionProperties);
-                    _cache[solutionPath] = slnxProps;
-                    return slnxProps;
+                    _cache[solutionPath] = SolutionEvaluator.EvaluateSlnxProperties(solutionProperties);
+                    return solutionProperties;
                 }
 
                 return EvaluateSolutionProjects(solutionProperties);
@@ -173,14 +175,15 @@ namespace SharpShift.Inventory.Core.Utilities
                     root = XElement.Parse(raw);
                     var solutionDict = solutionProperties["Solution"];
                     ProcessElement(
+                        solutionProperties["Solution"]["SolutionPath"],
                         root,
                         root.Name.LocalName,
                         solutionDict as Dictionary<string, string> ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
                 }
-                catch
+                catch (Exception ex)
                 {
                     // invalid XML fragment — return empty map
-                    return solutionProperties;
+                    throw new InvalidOperationException($"The solution file '{solutionProperties["Solution"]["SolutionPath"]}' is not a valid XML document.", ex);
                 }
 
                 return solutionProperties;
@@ -191,7 +194,7 @@ namespace SharpShift.Inventory.Core.Utilities
             }
         }
 
-        static void ProcessElement(XElement el, string path, Dictionary<string, string> slnProps)
+        static void ProcessElement(string solutionPath, XElement el, string path, Dictionary<string, string> propsDict)
         {
             var elementName = el.Name.LocalName;
             var firstAttribute = el.FirstAttribute?.Value ?? string.Empty;
@@ -203,7 +206,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 if (!string.IsNullOrEmpty(val))
                 {
                     var key = string.IsNullOrEmpty(path) ? el.Name.LocalName : path;
-                    slnProps[key] = val;
+                    propsDict[key] = val;
                 }
             }
             else
@@ -214,17 +217,18 @@ namespace SharpShift.Inventory.Core.Utilities
                     switch (child.Name.LocalName)
                     {
                         case "Project":
-                            var projectPath = child.Attribute("Path")?.Value ?? string.Empty;
+                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionPath), child.Attribute("Path")?.Value ?? string.Empty);
                             if (!string.IsNullOrEmpty(projectPath))
                             {
-                                slnProps[projectPath] = "Project";
+                                propsDict[$"Project|{projectPath}"] = JsonSerializer.Serialize(propsDict, _jsonOptions);
+                                propsDict[$"Project|{projectPath}"] = JsonSerializer.Serialize(ProjectEvaluator.EvaluateProjectProperties(propsDict), _jsonOptions);
                             }
                             break;
                         default:
                             break;
                     }
                     var childPath = string.IsNullOrEmpty(path) ? child.Name.LocalName : $"{path}.{child.Name.LocalName}";
-                    ProcessElement(child, childPath, slnProps);
+                    ProcessElement(solutionPath, child, childPath, propsDict);
                 }
             }
         }

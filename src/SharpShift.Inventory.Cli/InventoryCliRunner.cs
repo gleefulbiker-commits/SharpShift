@@ -12,6 +12,8 @@ namespace SharpShift.Inventory.Cli
     /// </summary>
     public static partial class InventoryCliRunner
     {
+        private static readonly JsonSerializerOptions _jsonOptions = new() { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
+
         public static readonly JsonSerializerOptions options = new ()
         {
             WriteIndented = true,
@@ -59,15 +61,14 @@ namespace SharpShift.Inventory.Cli
                         }
                         else if (sol.Source == "FileSystem" && !string.IsNullOrWhiteSpace(sol.LocalPath))
                         {
-                            Console.WriteLine($"Discovered local solution file: {sol.LocalPath}");
+                            Console.WriteLine($"Evaluating local solution file: {sol.LocalPath}");
                             solutionProperties = SolutionEvaluator.EvaluateSolutionProperties(sol.LocalPath, forceRefresh: true);
                         }
                     }
                 }
                 else
                 {
-                    slnFiles = [.. Directory.EnumerateFiles(rootPath, "*.sln", SearchOption.AllDirectories)];
-                    slnFiles.AddRange([.. Directory.EnumerateFiles(rootPath, "*.slnx", SearchOption.AllDirectories)]);
+                    throw new ArgumentNullException(nameof(solutionDiscoverer), "Solution discoverer is required.");
                 }
 
                 if (clean)
@@ -77,9 +78,12 @@ namespace SharpShift.Inventory.Cli
                         if (File.Exists(outputFile))
                             File.Delete(outputFile);
                     }
-                    catch { }
+                    catch
+                    {
+                    }
+
                     // clear evaluator cache
-                    SharpShift.Inventory.Core.Utilities.ProjectEvaluator.ClearCache();
+                    ProjectEvaluator.ClearCache();
                     Console.WriteLine("Performed clean restart: removed output and cleared evaluator cache.");
                 }
 
@@ -90,109 +94,12 @@ namespace SharpShift.Inventory.Cli
                     Summary = []
                 };
 
+                inventory.Summary["projectCount"] = inventory.Projects.Count;
+
                 if (remoteRepos.Count > 0)
                     inventory.Summary["remoteRepositories"] = remoteRepos;
 
-                //var props = SolutionEvaluator.EvaluateSolutionProperties(solutionName);
 
-
-                //foreach (var proj in csprojFiles)
-                //{
-                //    var projInv = new ProjectInventory
-                //    {
-                //        ProjectPath = proj,
-                //        ProjectName = Path.GetFileNameWithoutExtension(proj)
-                //    };
-
-                //    try
-                //    {
-                //        // Try MSBuild evaluation first
-                //        try
-                //        {
-                //            if (props.Count > 0)
-                //            {
-                //                //if (props.TryGetValue("TargetFramework", out var tf) && !string.IsNullOrWhiteSpace(tf))
-                //                //{
-                //                //    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(tf);
-                //                //}
-                //                //else if (props.TryGetValue("TargetFrameworks", out var tfs) && !string.IsNullOrWhiteSpace(tfs))
-                //                //{
-                //                //        var first = tfs.Split(';').FirstOrDefault();
-                //                //        projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(first);
-                //                //}
-                //                //else if (props.TryGetValue("TargetFrameworkVersion", out var legacy) && !string.IsNullOrWhiteSpace(legacy))
-                //                //{
-                //                //    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(legacy);
-                //                //}
-                //                //else
-                //                //{
-                //                //    // leave blank
-                //                //}
-                //            }
-                //            else
-                //            {
-                //                if (requireMsBuild)
-                //                {
-                //                    Console.Error.WriteLine($"MSBuild evaluation required but not available for project: {proj}");
-                //                    return 4;
-                //                }
-                //                // fallback to XML parsing
-                //                var doc = XDocument.Load(proj);
-                //                var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
-
-                //                var tf = doc.Descendants(ns + "TargetFramework").FirstOrDefault()?.Value;
-                //                if (string.IsNullOrWhiteSpace(tf))
-                //                {
-                //                    var tfs = doc.Descendants(ns + "TargetFrameworks").FirstOrDefault()?.Value;
-                //                    if (!string.IsNullOrWhiteSpace(tfs))
-                //                        tf = tfs.Split(';').FirstOrDefault();
-                //                }
-
-                //                if (string.IsNullOrWhiteSpace(tf))
-                //                {
-                //                    var legacy = doc.Descendants(ns + "TargetFrameworkVersion").FirstOrDefault()?.Value;
-                //                    if (!string.IsNullOrWhiteSpace(legacy)) projInv.Framework = NormalizeLegacyFramework(legacy);
-                //                }
-                //                else
-                //                {
-                //                    projInv.Framework = SharpShift.Inventory.Core.Utilities.FrameworkNormalizer.Normalize(tf);
-                //                }
-                //            }
-                //        }
-                //        catch
-                //        {
-                //            // fallback to XML parsing
-                //            var doc = XDocument.Load(proj);
-                //            var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
-
-                //            var tf = doc.Descendants(ns + "TargetFramework").FirstOrDefault()?.Value;
-                //            if (string.IsNullOrWhiteSpace(tf))
-                //            {
-                //                var tfs = doc.Descendants(ns + "TargetFrameworks").FirstOrDefault()?.Value;
-                //                if (!string.IsNullOrWhiteSpace(tfs))
-                //                    tf = tfs.Split(';').FirstOrDefault();
-                //            }
-
-                //            if (string.IsNullOrWhiteSpace(tf))
-                //            {
-                //                var legacy = doc.Descendants(ns + "TargetFrameworkVersion").FirstOrDefault()?.Value;
-                //                if (!string.IsNullOrWhiteSpace(legacy)) projInv.Framework = NormalizeLegacyFramework(legacy);
-                //            }
-                //            else
-                //            {
-                //                projInv.Framework = NormalizeSdkFramework(tf);
-                //            }
-                //        }
-                //    }
-                //    catch
-                //    {
-                //        // ignore parsing errors for now
-                //    }
-
-                //    inventory.Projects.Add(projInv);
-                //}
-
-                inventory.Summary["projectCount"] = inventory.Projects.Count;
                 var json = JsonSerializer.Serialize(inventory, options);
 
                 var fullPath = Path.Combine(rootPath, outputFile);
@@ -214,12 +121,33 @@ namespace SharpShift.Inventory.Cli
             {
                 foreach (var kvp in solutionDict)
                 {
-                    if (kvp.Value == "Project")
+                    if (kvp.Key.StartsWith("Project|"))
                     {
+                        var dict = JsonSerializer.Deserialize<IDictionary<string, string>>(kvp.Value, _jsonOptions);
+                        var dependencies = new List<DependencyInventory>();
+                        if (!string.IsNullOrWhiteSpace(dict?["ProjectReference"]))
+                        {
+                            dependencies.Add(new DependencyInventory { Name = dict["ProjectReference"], DependencyType = "ProjectReference" });
+                        }
+                        if (!string.IsNullOrWhiteSpace(dict?["PackageReference"]))
+                        {
+                            dependencies.Add(new DependencyInventory { Name = dict["PackageReference"], DependencyType = "PackageReference" });
+                        }
+                        if (!string.IsNullOrWhiteSpace(dict?["FrameworkReference"]))
+                        {
+                            dependencies.Add(new DependencyInventory { Name = dict["FrameworkReference"], DependencyType = "FrameworkReference" });
+                        }
+
+                        var projectPath = kvp.Key.Remove(0, "Project|".Length);
                         projects.Add(new ProjectInventory
                         {
-                            ProjectPath = kvp.Key
+                            ProjectName = Path.GetFileNameWithoutExtension(projectPath),
+                            ProjectPath = projectPath,
+                            Framework = NormalizeSdkFramework(dict?["TargetFramework"] ?? dict?["TargetFrameworks"] ?? dict?["TargetFrameworkVersion"] ?? string.Empty),
+                            ProjectType = dict?.TryGetValue("OutputType", out var outputType) == true ? outputType : "Class Library",
+                            Dependencies = dependencies,
                         });
+
                     }
                 }
             }

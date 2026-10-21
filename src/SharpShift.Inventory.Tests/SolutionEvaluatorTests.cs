@@ -50,10 +50,13 @@ namespace SharpShift.Inventory.Tests
             Directory.CreateDirectory(temp);
             try
             {
+                var sln = Path.Combine(temp, "MetaTest.sln");
                 var proj = Path.Combine(temp, "MetaTest.csproj");
+                var solutionProperties = new Dictionary<string, IDictionary<string, string>?>(StringComparer.OrdinalIgnoreCase);
+                var solutionDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { { "SolutionPath", sln } };
+                solutionProperties.Add("Solution", solutionDict);
                 File.WriteAllText(proj, "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <ItemGroup>\n    <PackageReference Include=\"Meta.Package\">\n      <Version>1.2.3</Version>\n      <PrivateAssets>all</PrivateAssets>\n    </PackageReference>\n  </ItemGroup>\n</Project>");
 
-                var sln = Path.Combine(temp, "MetaTest.sln");
                 var content = string.Join(Environment.NewLine, new[] {
                     "Microsoft Visual Studio Solution File, Format Version 12.00",
                     $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"MetaTest\", \"MetaTest.csproj\", \"{Guid.NewGuid():B}\"",
@@ -61,7 +64,7 @@ namespace SharpShift.Inventory.Tests
                 });
                 File.WriteAllText(sln, content);
 
-                var result = SolutionEvaluator.EvaluateSolutionProjects(sln);
+                var result = SolutionEvaluator.EvaluateSolutionProjects(solutionProperties);
                 if (result == null)
                 {
                     Assert.Ignore("SolutionEvaluator returned null (invalid solution path?).");
