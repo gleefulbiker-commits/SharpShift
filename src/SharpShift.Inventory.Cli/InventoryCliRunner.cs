@@ -87,7 +87,7 @@ namespace SharpShift.Inventory.Cli
                 {
                     SolutionName = solutionProperties["Solution"]?["SolutionPath"] ?? "Unknown",
                     Projects = GetProjects(solutionProperties),
-                    Summary = new Dictionary<string, object>()
+                    Summary = []
                 };
 
                 if (remoteRepos.Count > 0)
