@@ -99,7 +99,6 @@ namespace SharpShift.Inventory.Cli
                 if (remoteRepos.Count > 0)
                     inventory.Summary["remoteRepositories"] = remoteRepos;
 
-
                 var json = JsonSerializer.Serialize(inventory, options);
 
                 var fullPath = Path.Combine(rootPath, outputFile);
@@ -125,18 +124,18 @@ namespace SharpShift.Inventory.Cli
                     {
                         var dict = JsonSerializer.Deserialize<IDictionary<string, string>>(kvp.Value, _jsonOptions);
                         var dependencies = new List<DependencyInventory>();
-                        if (!string.IsNullOrWhiteSpace(dict?["ProjectReference"]))
-                        {
-                            dependencies.Add(new DependencyInventory { Name = dict["ProjectReference"], DependencyType = "ProjectReference" });
-                        }
-                        if (!string.IsNullOrWhiteSpace(dict?["PackageReference"]))
-                        {
-                            dependencies.Add(new DependencyInventory { Name = dict["PackageReference"], DependencyType = "PackageReference" });
-                        }
-                        if (!string.IsNullOrWhiteSpace(dict?["FrameworkReference"]))
-                        {
-                            dependencies.Add(new DependencyInventory { Name = dict["FrameworkReference"], DependencyType = "FrameworkReference" });
-                        }
+                        //if (!string.IsNullOrWhiteSpace(dict?["ProjectReference"]))
+                        //{
+                        //    dependencies.Add(new DependencyInventory { Name = dict["ProjectReference"], DependencyType = "ProjectReference" });
+                        //}
+                        //if (!string.IsNullOrWhiteSpace(dict?["PackageReference"]))
+                        //{
+                        //    dependencies.Add(new DependencyInventory { Name = dict["PackageReference"], DependencyType = "PackageReference" });
+                        //}
+                        //if (!string.IsNullOrWhiteSpace(dict?["FrameworkReference"]))
+                        //{
+                        //    dependencies.Add(new DependencyInventory { Name = dict["FrameworkReference"], DependencyType = "FrameworkReference" });
+                        //}
 
                         var projectPath = kvp.Key.Remove(0, "Project|".Length);
                         projects.Add(new ProjectInventory

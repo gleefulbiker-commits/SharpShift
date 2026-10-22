@@ -220,8 +220,7 @@ namespace SharpShift.Inventory.Core.Utilities
                             var projectPath = Path.Combine(Path.GetDirectoryName(solutionPath), child.Attribute("Path")?.Value ?? string.Empty);
                             if (!string.IsNullOrEmpty(projectPath))
                             {
-                                propsDict[$"Project|{projectPath}"] = JsonSerializer.Serialize(propsDict, _jsonOptions);
-                                propsDict[$"Project|{projectPath}"] = JsonSerializer.Serialize(ProjectEvaluator.EvaluateProjectProperties(propsDict), _jsonOptions);
+                                propsDict[$"Project|{projectPath}"] = JsonSerializer.Serialize(ProjectEvaluator.EvaluateProjectProperties(projectPath, out _), _jsonOptions);
                             }
                             break;
                         default:

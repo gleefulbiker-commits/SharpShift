@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Xml.Linq;
+using System.Xml.XPath;
+using System.Xml;
 
 namespace SharpShift.Inventory.Core.Utilities
 {
@@ -35,14 +37,15 @@ namespace SharpShift.Inventory.Core.Utilities
             if (string.IsNullOrWhiteSpace(projectPath) && projectDict.TryGetValue("Project", out var projectValue))
                 projectPath = projectValue;
 
-            return EvaluateProjectProperties(projectPath);
+            return EvaluateProjectProperties(projectPath, out _);
         }
 
         /// <summary>
         /// Attempts to evaluate common project properties from a .csproj file using literal XML values.
         /// </summary>
-        public static IDictionary<string, string>? EvaluateProjectProperties(string? projectPath)
+        public static IDictionary<string, string>? EvaluateProjectProperties(string? projectPath, out Models.ProjectInventory? projectInventory)
         {
+            projectInventory = null;
             if (string.IsNullOrWhiteSpace(projectPath) || !File.Exists(projectPath))
                 return null;
 
@@ -51,8 +54,17 @@ namespace SharpShift.Inventory.Core.Utilities
 
             try
             {
+                projectInventory = new Models.ProjectInventory
+                {
+                    ProjectPath = projectPath,
+                    ProjectName = Path.GetFileNameWithoutExtension(projectPath)
+                };
+
                 var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var doc = XDocument.Load(projectPath);
+                var itemGroups = doc.Descendants()
+                    .Where(x => string.Equals(x.Name.LocalName, "ItemGroup", StringComparison.OrdinalIgnoreCase));
+
 
                 var keys = new[] { 
                     "TargetFramework", 
@@ -69,35 +81,36 @@ namespace SharpShift.Inventory.Core.Utilities
                         k.Equals("PackageReference", StringComparison.OrdinalIgnoreCase) ||
                         k.Equals("FrameworkReference", StringComparison.OrdinalIgnoreCase))
                     {
-                        var items = doc.Descendants()
-                            .Where(x => string.Equals(x.Name.LocalName, "ItemGroup", StringComparison.OrdinalIgnoreCase))
-                            .SelectMany(ig => ig.Elements())
-                            .Where(item => string.Equals(item.Name.LocalName, k, StringComparison.OrdinalIgnoreCase))
-                            .Select(item => item.Attribute("Include")?.Value)
-                            .Where(include => !string.IsNullOrWhiteSpace(include))
-                            .Select(include => include!.Trim())
-                            .ToList();
-                        if (items.Count > 0)
+                        var items = doc.XPathSelectElements($"./Project/ItemGroup/{k}").ToList<XElement>();
+                        foreach (var item in items)
                         {
-                            props[k] = string.Join(";", items);
-                        }
-                        else
-                        {
-                            props[k] = string.Empty;
+                            var includeAttr = item.Attribute("Include");
+                            if (includeAttr is not null && !string.IsNullOrWhiteSpace(includeAttr.Value))
+                            {
+                                var dependencyInventory = new Models.DependencyInventory
+                                {
+                                    Name = includeAttr.Value,
+                                    Version = item.Attribute("Version")?.Value ?? string.Empty,
+                                    DependencyType = 
+                                        k.Equals("ProjectReference", StringComparison.OrdinalIgnoreCase) ? "Project" :
+                                        k.Equals("PackageReference", StringComparison.OrdinalIgnoreCase) ? "Package" :
+                                        k.Equals("FrameworkReference", StringComparison.OrdinalIgnoreCase) ? "Framework" : "Unknown"
+                                };
+                                projectInventory.Dependencies.Add(dependencyInventory);
+                            }
                         }
                         continue;
                     }
 
                     if(k.Equals("OutputType"))
                     {
-                        var propertyGroup = doc
-                        .Descendants()
-                        .FirstOrDefault(x => string.Equals(x.Name.LocalName, "PropertyGroup", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(x.Value));
-                        var outputType = propertyGroup
-                            .Descendants()
-                            .FirstOrDefault(x => string.Equals(x.Name.LocalName, k));
+                        var projectElement = doc.XPathSelectElement("./Project");
+                        var propertyGroupElement = doc.XPathSelectElement("./Project/PropertyGroup");
+                        var outputTypeElement = doc.XPathSelectElement("./Project/PropertyGroup/OutputType");
+                        var outputType = doc.XPathSelectElement("./Project/PropertyGroup/OutputType");
 
-                        props[k] = "fluff";
+                        props[k] = outputType?.Value ?? "Class Library";
+                        projectInventory.ProjectType = outputType?.Value ?? "Class Library";
                     }
 
                     var value = doc
@@ -106,7 +119,13 @@ namespace SharpShift.Inventory.Core.Utilities
                         ?.Value;
 
                     if (!string.IsNullOrWhiteSpace(value))
+                    {
                         props[k] = value.Trim();
+                        if(k.Equals("TargetFramework", StringComparison.OrdinalIgnoreCase) || k.Equals("TargetFrameworks", StringComparison.OrdinalIgnoreCase))
+                        {
+                            projectInventory.Framework = value.Trim();
+                        }
+                    }
                 }
 
                 _cache[projectPath] = props;
