@@ -13,6 +13,11 @@ namespace SharpShift.Inventory.Core.Models
         public string SolutionName { get; set; } = string.Empty;
 
         /// <summary>
+        /// This contains the fully qualified path for the solution file.
+        /// </summary>
+        public string SolutionPath { get; set; } = string.Empty;
+
+        /// <summary>
         /// Projects discovered in the solution or folder.
         /// </summary>
         public List<ProjectInventory> Projects { get; set; } = new();

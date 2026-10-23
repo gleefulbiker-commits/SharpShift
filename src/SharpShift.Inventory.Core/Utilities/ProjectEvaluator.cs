@@ -5,6 +5,7 @@ using System.IO;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using System.Xml;
+using SharpShift.Inventory.Core.Models;
 
 namespace SharpShift.Inventory.Core.Utilities
 {
@@ -13,7 +14,7 @@ namespace SharpShift.Inventory.Core.Utilities
     /// </summary>
     public static class ProjectEvaluator
     {
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, IDictionary<string, string>?> _cache = new();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, ProjectInventory?> _cache = new();
 
         /// <summary>
         /// Clear the evaluator cache.
@@ -28,26 +29,26 @@ namespace SharpShift.Inventory.Core.Utilities
         /// Returns a dictionary of property name->value when successful; otherwise null.
         /// Caches results per project path to reduce overhead.
         /// </summary>
-        public static IDictionary<string, string>? EvaluateProjectProperties(IDictionary<string, string>? projectDict)
+        public static ProjectInventory EvaluateProjectProperties(ProjectInventory projectInventory)
         {
-            if (projectDict == null || projectDict.Count == 0)
+            if (projectInventory is null)
                 return null;
 
-            var projectPath = projectDict.FirstOrDefault(kvp => kvp.Key.StartsWith("Project|", StringComparison.OrdinalIgnoreCase)).Key?.Remove(0, "Project|".Length);
-            if (string.IsNullOrWhiteSpace(projectPath) && projectDict.TryGetValue("Project", out var projectValue))
-                projectPath = projectValue;
+            var projectPath = projectInventory.ProjectPath;
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return null;
 
-            return EvaluateProjectProperties(projectPath, out _);
+            return EvaluateProjectProperties(projectInventory);
         }
 
         /// <summary>
         /// Attempts to evaluate common project properties from a .csproj file using literal XML values.
         /// </summary>
-        public static IDictionary<string, string>? EvaluateProjectProperties(string? projectPath, out Models.ProjectInventory? projectInventory)
+        public static ProjectInventory? EvaluateProjectProperties(string? projectPath)
         {
-            projectInventory = null;
+            ProjectInventory? projectInventory = null;
             if (string.IsNullOrWhiteSpace(projectPath) || !File.Exists(projectPath))
-                return null;
+                return projectInventory;
 
             if (_cache.TryGetValue(projectPath, out var cached))
                 return cached;
@@ -128,8 +129,8 @@ namespace SharpShift.Inventory.Core.Utilities
                     }
                 }
 
-                _cache[projectPath] = props;
-                return props;
+                _cache[projectPath] = projectInventory;
+                return projectInventory;
             }
             catch
             {

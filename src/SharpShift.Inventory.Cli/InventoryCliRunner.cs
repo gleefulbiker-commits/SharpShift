@@ -30,7 +30,7 @@ namespace SharpShift.Inventory.Cli
             bool clean = false,
             bool analyzeCloned = false)
         {
-            var solutionProperties = new Dictionary<string, IDictionary<string, string>?>(StringComparer.OrdinalIgnoreCase);
+            var allSolutions = new List<SolutionInventory>();
 
             try
             {
@@ -62,7 +62,12 @@ namespace SharpShift.Inventory.Cli
                         else if (sol.Source == "FileSystem" && !string.IsNullOrWhiteSpace(sol.LocalPath))
                         {
                             Console.WriteLine($"Evaluating local solution file: {sol.LocalPath}");
-                            solutionProperties = SolutionEvaluator.EvaluateSolutionProperties(sol.LocalPath, forceRefresh: true);
+                            var solutionInventory = SolutionEvaluator.EvaluateSolutionProperties(sol.LocalPath, forceRefresh: true);
+                            if (solutionInventory is not null)
+                            {
+                                solutionInventory.Summary["projectCount"] = solutionInventory.Projects.Count;
+                                allSolutions.Add(solutionInventory);
+                            }
                         }
                     }
                 }
@@ -87,19 +92,15 @@ namespace SharpShift.Inventory.Cli
                     Console.WriteLine("Performed clean restart: removed output and cleared evaluator cache.");
                 }
 
-                var inventory = new SolutionInventory
-                {
-                    SolutionName = solutionProperties["Solution"]?["SolutionPath"] ?? "Unknown",
-                    Projects = GetProjects(solutionProperties),
-                    Summary = []
-                };
-
-                inventory.Summary["projectCount"] = inventory.Projects.Count;
-
                 if (remoteRepos.Count > 0)
-                    inventory.Summary["remoteRepositories"] = remoteRepos;
+                {
+                    foreach (var solutionInventory in allSolutions)
+                    {
+                        solutionInventory.Summary["remoteRepositories"] = remoteRepos;
+                    }
+                }
 
-                var json = JsonSerializer.Serialize(inventory, options);
+                var json = JsonSerializer.Serialize(allSolutions, options);
 
                 var fullPath = Path.Combine(rootPath, outputFile);
                 File.WriteAllText(fullPath, json);

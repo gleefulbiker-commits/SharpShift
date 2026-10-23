@@ -23,98 +23,98 @@ namespace SharpShift.Inventory.DependencyAnalysis
             try
             {
                 var props = SharpShift.Inventory.Core.Utilities.ProjectEvaluator.EvaluateProjectProperties(context.ProjectPath);
-                if (props != null)
-                {
-                    // props contains Item.{i}.Type and Item.{i}.Include entries from evaluator
-                    var items = props.Where(kv => kv.Key.StartsWith("Item.", StringComparison.OrdinalIgnoreCase)).ToList();
-                    if (items.Count > 0)
-                    {
-                        var groups = new Dictionary<int, Dictionary<string, string>>();
-                        foreach (var kv in items)
-                        {
-                            // Item.{idx}.Type or Item.{idx}.Include or Item.{idx}.Metadata.{name}
-                            var parts = kv.Key.Split('.');
-                            if (parts.Length >= 3 && int.TryParse(parts[1], out var idx))
-                            {
-                                if (!groups.TryGetValue(idx, out var dict))
-                                {
-                                    dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                                    groups[idx] = dict;
-                                }
+                //if (props != null)
+                //{
+                //    // props contains Item.{i}.Type and Item.{i}.Include entries from evaluator
+                //    var items = props.Where(kv => kv.Key.StartsWith("Item.", StringComparison.OrdinalIgnoreCase)).ToList();
+                //    if (items.Count > 0)
+                //    {
+                //        var groups = new Dictionary<int, Dictionary<string, string>>();
+                //        foreach (var kv in items)
+                //        {
+                //            // Item.{idx}.Type or Item.{idx}.Include or Item.{idx}.Metadata.{name}
+                //            var parts = kv.Key.Split('.');
+                //            if (parts.Length >= 3 && int.TryParse(parts[1], out var idx))
+                //            {
+                //                if (!groups.TryGetValue(idx, out var dict))
+                //                {
+                //                    dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                //                    groups[idx] = dict;
+                //                }
 
-                                if (parts.Length == 3)
-                                {
-                                    dict[parts[2]] = kv.Value;
-                                }
-                                else if (parts.Length >= 4)
-                                {
-                                    // preserve metadata key name: Metadata.{name}
-                                    var key = parts[2] + "." + string.Join('.', parts.Skip(3));
-                                    dict[key] = kv.Value;
-                                }
-                            }
-                        }
+                //                if (parts.Length == 3)
+                //                {
+                //                    dict[parts[2]] = kv.Value;
+                //                }
+                //                else if (parts.Length >= 4)
+                //                {
+                //                    // preserve metadata key name: Metadata.{name}
+                //                    var key = parts[2] + "." + string.Join('.', parts.Skip(3));
+                //                    dict[key] = kv.Value;
+                //                }
+                //            }
+                //        }
 
-                    foreach (var g in groups.Values)
-                    {
-                        if (g.TryGetValue("Type", out var type) && g.TryGetValue("Include", out var include))
-                        {
-                            // Attempt to pick up metadata captured by ProjectEvaluator
-                            string? version = null;
-                            string? hintPath = null;
+                //    foreach (var g in groups.Values)
+                //    {
+                //        if (g.TryGetValue("Type", out var type) && g.TryGetValue("Include", out var include))
+                //        {
+                //            // Attempt to pick up metadata captured by ProjectEvaluator
+                //            string? version = null;
+                //            string? hintPath = null;
 
-                            // keys like Item.{idx}.Metadata.{Name}
-                            var metaKeys = g.Keys.Where(k => k.StartsWith("Metadata.", StringComparison.OrdinalIgnoreCase)).ToList();
-                            var other = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                            foreach (var mk in metaKeys)
-                            {
-                                var mdName = mk.Substring("Metadata.".Length);
-                                var mdVal = g[mk];
-                                if (string.Equals(mdName, "Version", StringComparison.OrdinalIgnoreCase))
-                                    version = mdVal;
-                                else if (string.Equals(mdName, "HintPath", StringComparison.OrdinalIgnoreCase))
-                                    hintPath = mdVal;
-                                else
-                                {
-                                    other[mdName] = mdVal;
-                                }
-                            }
+                //            // keys like Item.{idx}.Metadata.{Name}
+                //            var metaKeys = g.Keys.Where(k => k.StartsWith("Metadata.", StringComparison.OrdinalIgnoreCase)).ToList();
+                //            var other = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                //            foreach (var mk in metaKeys)
+                //            {
+                //                var mdName = mk.Substring("Metadata.".Length);
+                //                var mdVal = g[mk];
+                //                if (string.Equals(mdName, "Version", StringComparison.OrdinalIgnoreCase))
+                //                    version = mdVal;
+                //                else if (string.Equals(mdName, "HintPath", StringComparison.OrdinalIgnoreCase))
+                //                    hintPath = mdVal;
+                //                else
+                //                {
+                //                    other[mdName] = mdVal;
+                //                }
+                //            }
 
-                            if (type.Equals("PackageReference", StringComparison.OrdinalIgnoreCase))
-                            {
-                                var dep = new DependencyInventory { Name = include, Version = string.IsNullOrWhiteSpace(version) ? null : version, HintPath = hintPath, OtherMetadata = other.Count > 0 ? other : null, Source = "NuGet" };
-                                result.Dependencies.Add(dep);
-                            }
-                            else if (type.Equals("Reference", StringComparison.OrdinalIgnoreCase))
-                            {
-                                // Try to parse public key token from include (e.g., System.Xml, PublicKeyToken=abcdef)
-                                string? pkt = null;
-                                try
-                                {
-                                    var parts = include.Split(',').Select(p => p.Trim()).ToArray();
-                                    foreach (var p in parts)
-                                    {
-                                        if (p.StartsWith("PublicKeyToken=", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            pkt = p.Substring("PublicKeyToken=".Length);
-                                            break;
-                                        }
-                                    }
-                                }
-                                catch { }
+                //            if (type.Equals("PackageReference", StringComparison.OrdinalIgnoreCase))
+                //            {
+                //                var dep = new DependencyInventory { Name = include, Version = string.IsNullOrWhiteSpace(version) ? null : version, HintPath = hintPath, OtherMetadata = other.Count > 0 ? other : null, Source = "NuGet" };
+                //                result.Dependencies.Add(dep);
+                //            }
+                //            else if (type.Equals("Reference", StringComparison.OrdinalIgnoreCase))
+                //            {
+                //                // Try to parse public key token from include (e.g., System.Xml, PublicKeyToken=abcdef)
+                //                string? pkt = null;
+                //                try
+                //                {
+                //                    var parts = include.Split(',').Select(p => p.Trim()).ToArray();
+                //                    foreach (var p in parts)
+                //                    {
+                //                        if (p.StartsWith("PublicKeyToken=", StringComparison.OrdinalIgnoreCase))
+                //                        {
+                //                            pkt = p.Substring("PublicKeyToken=".Length);
+                //                            break;
+                //                        }
+                //                    }
+                //                }
+                //                catch { }
 
-                                var dep = new DependencyInventory { Name = include, HintPath = hintPath, PublicKeyToken = pkt, OtherMetadata = other.Count > 0 ? other : null, Source = "Reference" };
-                                result.Dependencies.Add(dep);
-                            }
-                        }
-                    }
-                    }
-                    else
-                    {
-                        // No item entries from evaluator - fall back to XML parsing
-                        props = null;
-                    }
-                }
+                //                var dep = new DependencyInventory { Name = include, HintPath = hintPath, PublicKeyToken = pkt, OtherMetadata = other.Count > 0 ? other : null, Source = "Reference" };
+                //                result.Dependencies.Add(dep);
+                //            }
+                //        }
+                //    }
+                //    }
+                //    else
+                //    {
+                //        // No item entries from evaluator - fall back to XML parsing
+                //        props = null;
+                //    }
+                //}
 
                 if (props == null)
                 {
