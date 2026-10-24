@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
 
@@ -17,10 +18,12 @@ namespace SharpShift.Inventory.Discovery
     public class GitHubSolutionDiscoverer : ISolutionDiscoverer
     {
         private readonly HttpClient _http;
+        private readonly ILogger<GitHubSolutionDiscoverer>? _logger;
 
-        public GitHubSolutionDiscoverer(HttpClient httpClient)
+        public GitHubSolutionDiscoverer(HttpClient httpClient, ILogger<GitHubSolutionDiscoverer>? logger = null)
         {
             _http = httpClient ?? new HttpClient();
+            _logger = logger;
             // Ensure a User-Agent header for GitHub API
             if (_http.DefaultRequestHeaders.UserAgent.Count <= 0)
                 _http.DefaultRequestHeaders.UserAgent.ParseAdd("SharpShift-Inventory/1.0");
@@ -37,17 +40,24 @@ namespace SharpShift.Inventory.Discovery
         {
             var accountsEnv = Environment.GetEnvironmentVariable("GITHUB_ACCOUNTS");
             if (string.IsNullOrWhiteSpace(accountsEnv))
+            {
+                _logger?.LogDebug("No GITHUB_ACCOUNTS configured; skipping GitHub discovery.");
                 return [];
+            }
 
             var accounts = accountsEnv.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).Where(a => !string.IsNullOrWhiteSpace(a));
             var results = new List<SolutionDiscoveryEntry>();
+            _logger?.LogInformation("Starting GitHub repository discovery for configured accounts.");
 
             foreach (var account in accounts)
             {
+                _logger?.LogDebug("Discovering repositories for GitHub account {Account}", account);
                 var list = await ListReposForAccount(account);
                 if (list != null)
                     results.AddRange(list);
             }
+
+            _logger?.LogInformation("GitHub discovery completed with {EntryCount} repository entries", results.Count);
 
             return results;
         }
@@ -67,8 +77,9 @@ namespace SharpShift.Inventory.Discovery
                 {
                     resp = await _http.GetAsync(uri);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger?.LogWarning(ex, "GitHub user repo request failed for account {Account} on page {Page}", account, page);
                     break;
                 }
 
@@ -80,13 +91,17 @@ namespace SharpShift.Inventory.Discovery
                     {
                         resp = await _http.GetAsync(orgUri);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        _logger?.LogWarning(ex, "GitHub org repo fallback request failed for account {Account} on page {Page}", account, page);
                         break;
                     }
 
                     if (!resp.IsSuccessStatusCode)
+                    {
+                        _logger?.LogWarning("GitHub repo discovery failed for account {Account}. Status code: {StatusCode}", account, (int)resp.StatusCode);
                         break;
+                    }
                 }
 
                 var json = await resp.Content.ReadAsStringAsync();
@@ -132,36 +147,38 @@ namespace SharpShift.Inventory.Discovery
                                     if (!System.IO.Directory.Exists(targetDir))
                                     {
                                         // Use GitHelper to perform clone (centralized checks and timeout handling)
-                                        if (SharpShift.Inventory.Core.Utilities.GitHelper.IsGitAvailable())
+                                        if (SharpShift.Inventory.Core.Utilities.GitHelper.IsGitAvailable(_logger))
                                         {
                                             // TryClone performs the clone with configured depth and timeout; ignore its result here
                                             _ = SharpShift.Inventory.Core.Utilities.GitHelper.TryClone(
                                                 htmlUrl ?? string.Empty,
                                                 targetDir,
                                                 SharpShift.Inventory.Core.Utilities.UpgradeConfig.DefaultCloneDepth,
-                                                SharpShift.Inventory.Core.Utilities.UpgradeConfig.DefaultCloneTimeoutMs);
+                                                SharpShift.Inventory.Core.Utilities.UpgradeConfig.DefaultCloneTimeoutMs,
+                                                _logger);
                                         }
                                     }
 
                                     if (System.IO.Directory.Exists(targetDir))
                                         entry.LocalPath = System.IO.Path.GetFullPath(targetDir);
                                 }
-                                catch
+                                catch (Exception ex)
                                 {
-                                    // ignore clone failures and continue
+                                    _logger?.LogWarning(ex, "Clone step failed for repository {RepoUrl}", htmlUrl);
                                 }
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // swallow any errors related to cloning configuration
+                            _logger?.LogWarning(ex, "Error while handling clone configuration for repository {RepoUrl}", htmlUrl);
                         }
 
                         results.Add(entry);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger?.LogWarning(ex, "Failed to parse GitHub response JSON for account {Account} on page {Page}", account, page);
                     break;
                 }
 

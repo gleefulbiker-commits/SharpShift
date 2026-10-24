@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SharpShift.Inventory.Cli;
 using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Discovery;
@@ -12,32 +13,55 @@ namespace SharpShift
         // Minimal CLI entrypoint: inventory scan <path> [--output <file>]
         public static async Task<int> Main(string[] args)
         {
-            if (args.Length == 0)
+            var services = new ServiceCollection();
+            services.AddLogging(builder =>
             {
-                Console.WriteLine("Usage: inventory scan <path> [--output <file>]");
+                builder.SetMinimumLevel(LogLevel.Information);
+                builder.AddSimpleConsole(options =>
+                {
+                    options.SingleLine = true;
+                    options.TimestampFormat = "HH:mm:ss ";
+                });
+            });
+            services.AddSingleton<ISolutionDiscoverer, SolutionDiscoverer>();
+            services.AddSingleton<IProjectDiscoverer, ProjectDiscoverer>();
+
+            using var provider = services.BuildServiceProvider();
+            var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("SharpShift.Program");
+
+            try
+            {
+                if (args.Length == 0)
+                {
+                    logger.LogWarning("No arguments provided.");
+                    Console.WriteLine("Usage: inventory scan <path> [--output <file>]");
+                    return 1;
+                }
+
+                if (args.Length >= 2 && args[0].Equals("scan", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Consolidate argument parsing into ParseArguments to avoid duplication
+                    var (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned) = ParseArguments(args);
+
+                    logger.LogInformation("Starting scan for {Path} with output {OutputFile}", path, output);
+
+                    var sol = provider.GetRequiredService<ISolutionDiscoverer>();
+                    var proj = provider.GetRequiredService<IProjectDiscoverer>();
+                    var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
+
+                    return await InventoryCliRunner.RunAsync(path, output, sol, proj, requireMsBuild, retryAttempts, clean, analyzeCloned, runnerLogger);
+                }
+
+                logger.LogWarning("Unknown command. Args: {Args}", string.Join(' ', args));
+                Console.WriteLine("Unknown command. Usage: inventory scan <path> [--output <file>]");
                 return 1;
             }
-
-            if (args.Length >= 2 && args[0].Equals("scan", StringComparison.OrdinalIgnoreCase))
+            catch (Exception ex)
             {
-                // Consolidate argument parsing into ParseArguments to avoid duplication
-                var (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned) = ParseArguments(args);
-
-                // Configure DI
-                var services = new ServiceCollection();
-                services.AddSingleton<ISolutionDiscoverer, SolutionDiscoverer>();
-                services.AddSingleton<IProjectDiscoverer, ProjectDiscoverer>();
-
-                var provider = services.BuildServiceProvider();
-
-                var sol = provider.GetRequiredService<ISolutionDiscoverer>();
-                var proj = provider.GetRequiredService<IProjectDiscoverer>();
-
-                return await InventoryCliRunner.RunAsync(path, output, sol, proj, requireMsBuild, retryAttempts, clean, analyzeCloned);
+                logger.LogCritical(ex, "Unhandled exception in program entrypoint.");
+                return 3;
             }
-
-            Console.WriteLine("Unknown command. Usage: inventory scan <path> [--output <file>]");
-            return 1;
         }
 
         /// <summary>

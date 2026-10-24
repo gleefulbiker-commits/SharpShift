@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
@@ -26,7 +27,7 @@ namespace SharpShift.Inventory.Core.Utilities
         [GeneratedRegex("VisualStudioVersion\\s*=\\s*(?<version>\\d+(?:\\.\\d+)+)", RegexOptions.Compiled)]
         public static partial Regex VisualStudioVersionRegex();
 
-        [GeneratedRegex("Project\\(\"\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}\"\\) = \"[A-Za-z0-9]+\", \"[^\"]*\", \"\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}\"", RegexOptions.Compiled)]
+        [GeneratedRegex("Project\\(\"(?<projecttypeid>\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\})\"\\) = \"(?<projectname>[A-Za-z0-9]+)\", \"(?<projectlocalpath>[^\"]*)\", \"(?<projectid>\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\})\"", RegexOptions.Compiled)]
         public static partial Regex LegacyProjectRegex();
 
         [GeneratedRegex("<\\s*Project\\b(?:\\s+Sdk\\s*=\\s*(?:\"(?<sdk>[^\"]*)\"|'(?<sdk>[^']*)'))?[^>]*>", RegexOptions.Compiled)]
@@ -46,7 +47,7 @@ namespace SharpShift.Inventory.Core.Utilities
         /// Returns null if the solution path is invalid.
         /// Results are cached per solution path.
         /// </summary>
-        public static SolutionInventory? EvaluateSolutionProjects(SolutionInventory solutionInventory)
+        public static SolutionInventory? EvaluateSolutionProjects(SolutionInventory solutionInventory, ILogger? logger = null)
         {
             if (_cache.TryGetValue(solutionInventory.SolutionPath, out var cached))
                 return cached;
@@ -65,6 +66,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 if (projectMatches.Count == 0)
                 {
                     // No projects found in the solution file
+                    logger?.LogInformation("No projects found in solution file {SolutionPath}", solutionInventory.SolutionPath);
                     return solutionInventory;
                 }
             }
@@ -72,35 +74,44 @@ namespace SharpShift.Inventory.Core.Utilities
             foreach (Match match in projectMatches)
             {
                 // Now scan for the project local path in the match groups. If found, add it to the solution inventory.
+                var projectTypeId = match.Groups["projecttypeid"].Value;
+                var projectName = match.Groups["projectname"].Value;
                 var projectLocalPath = match.Groups["projectlocalpath"].Value;
+                var projectId = match.Groups["projectid"].Value;
                 if (!string.IsNullOrEmpty(projectLocalPath))
                 {
-                    var absoluteProjectPath = Path.Combine(Path.GetDirectoryName(solutionInventory.SolutionPath), projectLocalPath);
+                    var absoluteProjectPath = Path.Combine(Path.GetDirectoryName(solutionInventory?.SolutionPath ?? string.Empty), projectLocalPath);
                     solutionInventory.Projects.Add(new ProjectInventory
                     {
                         ProjectName = Path.GetFileNameWithoutExtension(absoluteProjectPath),
-                        ProjectPath = absoluteProjectPath
+                        ProjectPath = absoluteProjectPath,
+                        ProjectTypeId = projectTypeId,
+                        ProjectType = DotNetProjectTypeGuids.Map.ContainsKey(projectTypeId) ? DotNetProjectTypeGuids.Map[projectTypeId] : "Unknown",
+                        ProjectId = projectId
                     });
                 }
             }
 
-            foreach (var project in solutionInventory.Projects)
+            solutionInventory.Projects.ForEach(project =>
             {
-                try
+                var evaluatedProject = ProjectEvaluator.EvaluateProjectProperties(project.ProjectPath, logger);
+                if (evaluatedProject is null)
                 {
-                    var projectInventory = ProjectEvaluator.EvaluateProjectProperties(project);
+                    logger?.LogWarning("Project evaluation returned null for {ProjectPath}", project.ProjectPath);
+                    return;
                 }
-                catch
-                {
-                    // ensure failures are represented as null so callers can see which projects failed
-                }
-            }
+
+                project.Framework = evaluatedProject.Framework;
+                project.Metadata = evaluatedProject.Metadata;
+                project.Dependencies = evaluatedProject.Dependencies;
+                project.LocalPath = evaluatedProject.LocalPath;
+            });
 
             _cache[solutionInventory.SolutionPath] = solutionInventory;
             return solutionInventory;
         }
 
-        public static SolutionInventory? EvaluateSolutionProperties(string solutionPath, bool forceRefresh = false)
+        public static SolutionInventory? EvaluateSolutionProperties(string solutionPath, bool forceRefresh = false, ILogger? logger = null)
         {
             var solutionInventory = new SolutionInventory
             {
@@ -111,7 +122,10 @@ namespace SharpShift.Inventory.Core.Utilities
             };  
 
             if (string.IsNullOrWhiteSpace(solutionPath) || !File.Exists(solutionPath))
+            {
+                logger?.LogWarning("Solution file path is empty or missing: {SolutionPath}", solutionPath);
                 return solutionInventory;
+            }
 
             if (_cache.TryGetValue(solutionPath, out var cached))
                 return cached;
@@ -123,15 +137,15 @@ namespace SharpShift.Inventory.Core.Utilities
             {
                 if(Path.GetExtension(solutionPath).Equals(".slnx", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    _cache[solutionPath] = SolutionEvaluator.EvaluateSlnxProperties(solutionInventory);
+                    _cache[solutionPath] = SolutionEvaluator.EvaluateSlnxProperties(solutionInventory, logger);
                     return solutionInventory;
                 }
 
-                return EvaluateSolutionProjects(solutionInventory);
+                return EvaluateSolutionProjects(solutionInventory, logger);
             }
             catch (Exception ex)
             {
-                // Add logging
+                logger?.LogError(ex, "Failed to evaluate solution properties for {SolutionPath}", solutionPath);
             }
             return solutionInventory;
         }
@@ -142,7 +156,7 @@ namespace SharpShift.Inventory.Core.Utilities
         /// </summary>
         /// <param name="solutionInventory">A SolutionInventory object.</param>
         /// <returns>A SolutionInventory object with evaluated properties.</returns>
-        private static SolutionInventory EvaluateSlnxProperties(SolutionInventory solutionInventory)
+        private static SolutionInventory EvaluateSlnxProperties(SolutionInventory solutionInventory, ILogger? logger = null)
         {
             try
             {
@@ -155,10 +169,14 @@ namespace SharpShift.Inventory.Core.Utilities
                     var projects = doc.XPathSelectElements("/Solution/Project").ToList();
                     projects.ForEach(el =>
                     {
-                        var projectPath = Path.Combine(Path.GetDirectoryName(solutionInventory.SolutionPath), el.Attribute("Path")?.Value ?? string.Empty);
+                        var projectPath = Path.Combine(Path.GetDirectoryName(solutionInventory?.SolutionPath ?? string.Empty), el.Attribute("Path")?.Value ?? string.Empty);
                         if (!string.IsNullOrEmpty(projectPath))
                         {
-                            solutionInventory.Projects.Add(ProjectEvaluator.EvaluateProjectProperties(projectPath));
+                            var project = ProjectEvaluator.EvaluateProjectProperties(projectPath, logger);
+                            if (project is not null)
+                                solutionInventory.Projects.Add(project);
+                            else
+                                logger?.LogWarning("Project evaluation returned null for {ProjectPath}", projectPath);
                         }
                     });
                 }
@@ -170,19 +188,20 @@ namespace SharpShift.Inventory.Core.Utilities
 
                 return solutionInventory;
             }
-            catch
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Failed to evaluate .slnx solution properties for {SolutionPath}", solutionInventory.SolutionPath);
                 return solutionInventory;
             }
         }
 
-        static void ProcessElement(string solutionPath, XElement el, string path, SolutionInventory solutionInventory)
+        static void ProcessElement(string solutionPath, XElement el, string path, SolutionInventory solutionInventory, ILogger? logger = null)
         {
             var elementName = el.Name.LocalName;
             var firstAttribute = el.FirstAttribute?.Value ?? string.Empty;
 
             var children = el.Elements().ToList();
-            if (!children.Any())
+            if (children.Count == 0)
             {
                 var val = (el.Value ?? string.Empty).Trim();
                 if (!string.IsNullOrEmpty(val))
@@ -199,17 +218,21 @@ namespace SharpShift.Inventory.Core.Utilities
                     switch (child.Name.LocalName)
                     {
                         case "Project":
-                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionPath), child.Attribute("Path")?.Value ?? string.Empty);
+                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionPath ?? string.Empty), child.Attribute("Path")?.Value ?? string.Empty);
                             if (!string.IsNullOrEmpty(projectPath))
                             {
-                                solutionInventory.Projects.Add(ProjectEvaluator.EvaluateProjectProperties(projectPath));
+                                var project = ProjectEvaluator.EvaluateProjectProperties(projectPath, logger);
+                                if (project is not null)
+                                    solutionInventory.Projects.Add(project);
+                                else
+                                    logger?.LogWarning("Project evaluation returned null for {ProjectPath}", projectPath);
                             }
                             break;
                         default:
                             break;
                     }
                     var childPath = string.IsNullOrEmpty(path) ? child.Name.LocalName : $"{path}.{child.Name.LocalName}";
-                    ProcessElement(solutionPath, child, childPath, solutionInventory);
+                    ProcessElement(solutionPath ?? string.Empty, child, childPath, solutionInventory, logger);
                 }
             }
         }

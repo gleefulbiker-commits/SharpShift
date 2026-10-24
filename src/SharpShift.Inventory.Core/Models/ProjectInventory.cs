@@ -8,9 +8,19 @@ namespace SharpShift.Inventory.Core.Models
     public class ProjectInventory
     {
         /// <summary>
+        /// Detected project ID.
+        /// </summary>
+        public string ProjectId { get; set; } = string.Empty;
+
+        /// <summary>
         /// Project file name or logical project name.
         /// </summary>
         public string ProjectName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Detected project type ID.
+        /// </summary>
+        public string ProjectTypeId { get; set; } = string.Empty;
 
         /// <summary>
         /// Detected project type (e.g., "ASP.NET MVC", "Class Library").
@@ -30,13 +40,13 @@ namespace SharpShift.Inventory.Core.Models
         /// <summary>
         /// Additional metadata for the project.
         /// </summary>
-        public Dictionary<string, object> Metadata { get; set; } = new();
+        public Dictionary<string, object> Metadata { get; set; } = [];
 
         /// <summary>
         /// Discovered dependencies for the project (if analyzers run or evaluator provided items).
         /// This is included in the serialized inventory output so dependency details (HintPath, PublicKeyToken, OtherMetadata) are persisted.
         /// </summary>
-        public List<DependencyInventory> Dependencies { get; set; } = new();
+        public List<DependencyInventory> Dependencies { get; set; } = [];
 
         /// <summary>
         /// Local path when project was discovered via cloning (GitHub discovery clones).

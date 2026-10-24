@@ -23,6 +23,23 @@ namespace SharpShift.Inventory.DependencyAnalysis
             try
             {
                 var props = SharpShift.Inventory.Core.Utilities.ProjectEvaluator.EvaluateProjectProperties(context.ProjectPath);
+                if (props != null && props.Dependencies.Count > 0)
+                {
+                    foreach (var dep in props.Dependencies)
+                    {
+                        result.Dependencies.Add(new DependencyInventory
+                        {
+                            Name = dep.Name,
+                            Version = dep.Version,
+                            DependencyType = dep.DependencyType,
+                            HintPath = dep.HintPath,
+                            PublicKeyToken = dep.PublicKeyToken,
+                            OtherMetadata = dep.OtherMetadata,
+                            Source = string.IsNullOrWhiteSpace(dep.Source) ? dep.DependencyType : dep.Source
+                        });
+                    }
+                }
+
                 //if (props != null)
                 //{
                 //    // props contains Item.{i}.Type and Item.{i}.Include entries from evaluator
@@ -116,7 +133,7 @@ namespace SharpShift.Inventory.DependencyAnalysis
                 //    }
                 //}
 
-                if (props == null)
+                if (props == null || !result.Dependencies.Any(d => string.Equals(d.Source, "Reference", StringComparison.OrdinalIgnoreCase)))
                 {
                     // Fallback: parse XML to discover PackageReference and Reference items
                     try
@@ -147,7 +164,8 @@ namespace SharpShift.Inventory.DependencyAnalysis
                             }
                             catch { }
 
-                            result.Dependencies.Add(new DependencyInventory { Name = p!, Version = string.IsNullOrWhiteSpace(version) ? null : version, Source = "NuGet", OtherMetadata = other.Count > 0 ? other : null });
+                            if (!result.Dependencies.Any(d => string.Equals(d.Name, p, StringComparison.OrdinalIgnoreCase)))
+                                result.Dependencies.Add(new DependencyInventory { Name = p!, Version = string.IsNullOrWhiteSpace(version) ? null : version, Source = "NuGet", OtherMetadata = other.Count > 0 ? other : null });
                         }
 
                         var refs = doc.Descendants(ns + "Reference").Select(x => x.Attribute("Include")?.Value).Where(x => !string.IsNullOrWhiteSpace(x));
@@ -173,7 +191,8 @@ namespace SharpShift.Inventory.DependencyAnalysis
                             }
                             catch { }
 
-                            result.Dependencies.Add(new DependencyInventory { Name = r!, HintPath = string.IsNullOrWhiteSpace(hint) ? null : hint, Source = "Reference", OtherMetadata = other.Count > 0 ? other : null });
+                            if (!result.Dependencies.Any(d => string.Equals(d.Name, r, StringComparison.OrdinalIgnoreCase)))
+                                result.Dependencies.Add(new DependencyInventory { Name = r!, HintPath = string.IsNullOrWhiteSpace(hint) ? null : hint, Source = "Reference", OtherMetadata = other.Count > 0 ? other : null });
                         }
                     }
                     catch

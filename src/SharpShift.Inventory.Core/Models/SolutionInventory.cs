@@ -20,11 +20,11 @@ namespace SharpShift.Inventory.Core.Models
         /// <summary>
         /// Projects discovered in the solution or folder.
         /// </summary>
-        public List<ProjectInventory> Projects { get; set; } = new();
+        public List<ProjectInventory> Projects { get; set; } = [];
 
         /// <summary>
         /// Simple summary metrics, e.g. project count.
         /// </summary>
-        public Dictionary<string, object> Summary { get; set; } = new();
+        public Dictionary<string, object> Summary { get; set; } = [];
     }
 }

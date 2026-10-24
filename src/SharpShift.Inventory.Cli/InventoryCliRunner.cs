@@ -1,5 +1,6 @@
 using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Core.Utilities;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
@@ -20,7 +21,7 @@ namespace SharpShift.Inventory.Cli
             TypeInfoResolver = new DefaultJsonTypeInfoResolver()
         };
 
-    public static async Task<int> RunAsync(
+        public static async Task<int> RunAsync(
             string rootPath,
             string outputFile,
             SharpShift.Inventory.Core.Interfaces.ISolutionDiscoverer? solutionDiscoverer = null,
@@ -28,7 +29,8 @@ namespace SharpShift.Inventory.Cli
             bool requireMsBuild = false,
             int retryAttempts = 0,
             bool clean = false,
-            bool analyzeCloned = false)
+            bool analyzeCloned = false,
+            ILogger? logger = null)
         {
             var allSolutions = new List<SolutionInventory>();
 
@@ -36,6 +38,7 @@ namespace SharpShift.Inventory.Cli
             {
                 if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
                 {
+                    logger?.LogError("Path not found: {RootPath}", rootPath);
                     Console.Error.WriteLine($"Path not found: {rootPath}");
                     return 2;
                 }
@@ -57,12 +60,12 @@ namespace SharpShift.Inventory.Cli
                     {
                         if (sol.Source == "GitHub" && !string.IsNullOrWhiteSpace(sol.RepoUrl))
                         {
-                            Console.WriteLine($"Discovered remote GitHub repository: {sol.RepoUrl} (archived: {sol.IsArchived})");
+                            logger?.LogInformation("Discovered remote GitHub repository: {RepoUrl} (archived: {IsArchived})", sol.RepoUrl, sol.IsArchived);
                         }
                         else if (sol.Source == "FileSystem" && !string.IsNullOrWhiteSpace(sol.LocalPath))
                         {
-                            Console.WriteLine($"Evaluating local solution file: {sol.LocalPath}");
-                            var solutionInventory = SolutionEvaluator.EvaluateSolutionProperties(sol.LocalPath, forceRefresh: true);
+                            logger?.LogInformation("Evaluating local solution file: {SolutionPath}", sol.LocalPath);
+                            var solutionInventory = SolutionEvaluator.EvaluateSolutionProperties(sol.LocalPath, forceRefresh: true, logger);
                             if (solutionInventory is not null)
                             {
                                 solutionInventory.Summary["projectCount"] = solutionInventory.Projects.Count;
@@ -85,11 +88,12 @@ namespace SharpShift.Inventory.Cli
                     }
                     catch
                     {
+                        logger?.LogWarning("Failed to delete previous output file during clean run: {OutputFile}", outputFile);
                     }
 
                     // clear evaluator cache
                     ProjectEvaluator.ClearCache();
-                    Console.WriteLine("Performed clean restart: removed output and cleared evaluator cache.");
+                    logger?.LogInformation("Performed clean restart: removed output and cleared evaluator cache.");
                 }
 
                 if (remoteRepos.Count > 0)
@@ -104,54 +108,15 @@ namespace SharpShift.Inventory.Cli
 
                 var fullPath = Path.Combine(rootPath, outputFile);
                 File.WriteAllText(fullPath, json);
-                Console.WriteLine($"Wrote inventory to {fullPath}");
+                logger?.LogInformation("Wrote inventory to {OutputPath}", fullPath);
                 return 0;
             }
             catch (Exception ex)
             {
+                logger?.LogError(ex, "Unhandled exception during inventory run for root path {RootPath}", rootPath);
                 Console.Error.WriteLine(ex.ToString());
                 return 3;
             }
-        }
-
-        private static List<ProjectInventory> GetProjects(Dictionary<string, IDictionary<string, string>?> solutionProperties)
-        {
-            var projects = new List<ProjectInventory>();
-            if (solutionProperties.TryGetValue("Solution", out var solutionDict) && solutionDict != null)
-            {
-                foreach (var kvp in solutionDict)
-                {
-                    if (kvp.Key.StartsWith("Project|"))
-                    {
-                        var dict = JsonSerializer.Deserialize<IDictionary<string, string>>(kvp.Value, _jsonOptions);
-                        var dependencies = new List<DependencyInventory>();
-                        //if (!string.IsNullOrWhiteSpace(dict?["ProjectReference"]))
-                        //{
-                        //    dependencies.Add(new DependencyInventory { Name = dict["ProjectReference"], DependencyType = "ProjectReference" });
-                        //}
-                        //if (!string.IsNullOrWhiteSpace(dict?["PackageReference"]))
-                        //{
-                        //    dependencies.Add(new DependencyInventory { Name = dict["PackageReference"], DependencyType = "PackageReference" });
-                        //}
-                        //if (!string.IsNullOrWhiteSpace(dict?["FrameworkReference"]))
-                        //{
-                        //    dependencies.Add(new DependencyInventory { Name = dict["FrameworkReference"], DependencyType = "FrameworkReference" });
-                        //}
-
-                        var projectPath = kvp.Key.Remove(0, "Project|".Length);
-                        projects.Add(new ProjectInventory
-                        {
-                            ProjectName = Path.GetFileNameWithoutExtension(projectPath),
-                            ProjectPath = projectPath,
-                            Framework = NormalizeSdkFramework(dict?["TargetFramework"] ?? dict?["TargetFrameworks"] ?? dict?["TargetFrameworkVersion"] ?? string.Empty),
-                            ProjectType = dict?.TryGetValue("OutputType", out var outputType) == true ? outputType : "Class Library",
-                            Dependencies = dependencies,
-                        });
-
-                    }
-                }
-            }
-            return projects;
         }
 
         private static string NormalizeLegacyFramework(string legacy)

@@ -1,13 +1,28 @@
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using SharpShift.Inventory.Core.Models;
+using SharpShift.Inventory.Discovery;
 
 namespace SharpShift.Inventory.Tests
 {
     public class CliScanSampleTests
     {
+        [Test]
+        public async Task InventoryCliRunner_InvalidPath_ReturnsNotFoundCode()
+        {
+            var code = await SharpShift.Inventory.Cli.InventoryCliRunner.RunAsync(
+                "Z:\\path-that-does-not-exist-for-tests",
+                "inventory.json",
+                logger: NullLogger.Instance);
+
+            Assert.AreEqual(2, code);
+        }
+
         [Test]
         public async Task InventoryCliRunner_ScanSampleRepo_ProducesExpectedJson()
         {
@@ -16,10 +31,6 @@ namespace SharpShift.Inventory.Tests
 
             try
             {
-                // Create a fake solution file
-                var slnPath = Path.Combine(temp, "Sample.sln");
-                File.WriteAllText(slnPath, "\n");
-
                 // Legacy-style csproj
                 var legacyProj = Path.Combine(temp, "LegacyProject.csproj");
                 File.WriteAllText(legacyProj, @"<Project>
@@ -32,15 +43,27 @@ namespace SharpShift.Inventory.Tests
                 var sdkProj = Path.Combine(temp, "SdkProject.csproj");
                 File.WriteAllText(sdkProj, "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net48</TargetFramework>\n  </PropertyGroup>\n</Project>");
 
-                var output = Path.Combine(temp, "inventory.json");
+                // Create a simple solution file that points to both projects
+                var slnxPath = Path.Combine(temp, "Sample.slnx");
+                File.WriteAllText(slnxPath, "<Solution>\n  <Project Path=\"LegacyProject.csproj\" />\n  <Project Path=\"SdkProject.csproj\" />\n</Solution>");
 
-                var code = await SharpShift.Inventory.Cli.InventoryCliRunner.RunAsync(temp, output);
+                var output = "inventory.json";
+
+                var code = await SharpShift.Inventory.Cli.InventoryCliRunner.RunAsync(
+                    temp,
+                    output,
+                    new SolutionDiscoverer(),
+                    new ProjectDiscoverer(),
+                    logger: NullLogger.Instance);
                 Assert.AreEqual(0, code, "Runner did not return success code");
 
-                Assert.IsTrue(File.Exists(output), "Output file not created");
+                var outputPath = Path.Combine(temp, output);
+                Assert.IsTrue(File.Exists(outputPath), "Output file not created");
 
-                var json = File.ReadAllText(output);
-                var inv = JsonSerializer.Deserialize<SolutionInventory>(json);
+                var json = File.ReadAllText(outputPath);
+                var inventories = JsonSerializer.Deserialize<List<SolutionInventory>>(json);
+                Assert.IsNotNull(inventories);
+                var inv = inventories?.FirstOrDefault(i => i.SolutionName == "Sample");
                 Assert.IsNotNull(inv);
                 Assert.AreEqual(2, inv?.Projects.Count);
 

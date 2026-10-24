@@ -5,6 +5,7 @@ using System.IO;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 using SharpShift.Inventory.Core.Models;
 
 namespace SharpShift.Inventory.Core.Utilities
@@ -29,26 +30,35 @@ namespace SharpShift.Inventory.Core.Utilities
         /// Returns a dictionary of property name->value when successful; otherwise null.
         /// Caches results per project path to reduce overhead.
         /// </summary>
-        public static ProjectInventory EvaluateProjectProperties(ProjectInventory projectInventory)
-        {
-            if (projectInventory is null)
-                return null;
+        //public static ProjectInventory EvaluateProjectProperties(ProjectInventory projectInventory)
+        //{
+        //    if (projectInventory is null)
+        //        return null;
 
-            var projectPath = projectInventory.ProjectPath;
-            if (string.IsNullOrWhiteSpace(projectPath))
-                return null;
+        //    var projectPath = projectInventory.ProjectPath;
+        //    if (string.IsNullOrWhiteSpace(projectPath))
+        //        return null;
 
-            return EvaluateProjectProperties(projectInventory);
-        }
+        //    return EvaluateProjectProperties(projectInventory);
+        //}
 
         /// <summary>
         /// Attempts to evaluate common project properties from a .csproj file using literal XML values.
         /// </summary>
         public static ProjectInventory? EvaluateProjectProperties(string? projectPath)
+            => EvaluateProjectProperties(projectPath, null);
+
+        /// <summary>
+        /// Attempts to evaluate common project properties from a .csproj file using literal XML values.
+        /// </summary>
+        public static ProjectInventory? EvaluateProjectProperties(string? projectPath, ILogger? logger)
         {
             ProjectInventory? projectInventory = null;
             if (string.IsNullOrWhiteSpace(projectPath) || !File.Exists(projectPath))
+            {
+                logger?.LogWarning("Project file path is empty or does not exist: {ProjectPath}", projectPath);
                 return projectInventory;
+            }
 
             if (_cache.TryGetValue(projectPath, out var cached))
                 return cached;
@@ -124,7 +134,16 @@ namespace SharpShift.Inventory.Core.Utilities
                         props[k] = value.Trim();
                         if(k.Equals("TargetFramework", StringComparison.OrdinalIgnoreCase) || k.Equals("TargetFrameworks", StringComparison.OrdinalIgnoreCase))
                         {
-                            projectInventory.Framework = value.Trim();
+                            var frameworkValue = value.Trim();
+                            if (k.Equals("TargetFrameworks", StringComparison.OrdinalIgnoreCase))
+                                frameworkValue = frameworkValue.Split(';', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? frameworkValue;
+
+                            projectInventory.Framework = FrameworkNormalizer.Normalize(frameworkValue);
+                        }
+
+                        if (k.Equals("TargetFrameworkVersion", StringComparison.OrdinalIgnoreCase))
+                        {
+                            projectInventory.Framework = FrameworkNormalizer.Normalize(value.Trim());
                         }
                     }
                 }
@@ -132,8 +151,9 @@ namespace SharpShift.Inventory.Core.Utilities
                 _cache[projectPath] = projectInventory;
                 return projectInventory;
             }
-            catch
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Failed to evaluate project properties for {ProjectPath}", projectPath);
                 _cache[projectPath] = null;
                 return null;
             }
