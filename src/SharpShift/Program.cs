@@ -1,10 +1,12 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using Microsoft.Build.Framework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SharpShift.Inventory.Cli;
 using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Discovery;
+using SharpShift.LoggerMessages;
+using System;
+using System.Threading.Tasks;
 
 namespace SharpShift
 {
@@ -39,29 +41,27 @@ namespace SharpShift
                     return 1;
                 }
 
-                if (args.Length >= 2 && args[0].Equals("scan", StringComparison.OrdinalIgnoreCase))
+                if (args.Length >= 2)
                 {
-                    // Consolidate argument parsing into ParseArguments to avoid duplication
                     var (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned) = ParseArguments(args);
 
-                    logger.LogInformation("Starting scan for {Path} with output {OutputFile}", path, output);
-
-                    var sol = provider.GetRequiredService<ISolutionDiscoverer>();
-                    var proj = provider.GetRequiredService<IProjectDiscoverer>();
-                    var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
-
-                    return await InventoryCliRunner.RunAsync(path, output, sol, proj, requireMsBuild, retryAttempts, clean, analyzeCloned, runnerLogger);
+                    var result = args[0].ToLower() switch
+                    {
+                        "scan" => await ScanRepositories(path, output, requireMsBuild, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
+                        "analyze" => await AnalyzeEstate(path, output, requireMsBuild, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
+                        _ => throw new InvalidOperationException($"Invalid command. '{args[0]}' is not a valid subcommand.")
+                    };
+                    
+                    return result;
                 }
-
-                logger.LogWarning("Unknown command. Args: {Args}", string.Join(' ', args));
-                Console.WriteLine("Unknown command. Usage: inventory scan <path> [--output <file>]");
-                return 1;
             }
             catch (Exception ex)
             {
                 logger.LogCritical(ex, "Unhandled exception in program entrypoint.");
                 return 3;
             }
+
+            return 1;
         }
 
         /// <summary>
@@ -91,11 +91,16 @@ namespace SharpShift
                 // and returns how many extra positions the loop should advance (0 or 1).
                 Func<int> handler = token switch
                 {
-                    "--output" when i + 1 < args.Length => () => { output = args[i + 1]; return 1; },
-                    "--require-msbuild" => () => { requireMsBuild = true; return 0; },
-                    "--retry" when i + 1 < args.Length => () => { if (int.TryParse(args[i + 1], out var rr)) retryAttempts = rr; return 1; },
-                    "--clean" => () => { clean = true; return 0; },
-                    "--analyze-cloned" => () => { analyzeCloned = true; return 0; },
+                    "--output" when i + 1 < args.Length => () => { output = args[i + 1]; return 1; }
+                    ,
+                    "--require-msbuild" => () => { requireMsBuild = true; return 0; }
+                    ,
+                    "--retry" when i + 1 < args.Length => () => { if (int.TryParse(args[i + 1], out var rr)) retryAttempts = rr; return 1; }
+                    ,
+                    "--clean" => () => { clean = true; return 0; }
+                    ,
+                    "--analyze-cloned" => () => { analyzeCloned = true; return 0; }
+                    ,
                     _ => () => 0,
                 };
 
@@ -103,6 +108,48 @@ namespace SharpShift
             }
 
             return (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned);
+        }
+
+        public static async Task<int> ScanRepositories(
+            string path,
+            string output,
+            bool requireMsBuild,
+            int retryAttempts,
+            bool clean,
+            bool analyzeCloned,
+            Microsoft.Extensions.Logging.ILogger logger,
+            IServiceProvider provider,
+            Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
+        {
+            logger.LogInformation("Starting scan for {Path} with output {OutputFile}", path, output);
+
+            var sol = provider.GetRequiredService<ISolutionDiscoverer>();
+            var proj = provider.GetRequiredService<IProjectDiscoverer>();
+            var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
+
+            return await InventoryCliRunner.RunAsync(path, output, sol, proj, requireMsBuild, retryAttempts, clean, analyzeCloned, runnerLogger);
+        }
+
+        public static async Task<int> AnalyzeEstate(
+                    string path,
+                    string output,
+                    bool requireMsBuild,
+                    int retryAttempts,
+                    bool clean,
+                    bool analyzeCloned,
+                    Microsoft.Extensions.Logging.ILogger logger,
+                    IServiceProvider provider,
+                    Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
+        {
+            // Add logic for analyzing solutions, projects, dependencies, then risks
+
+            LogMessages.StartingAnalysis(logger, path, output);
+            logger.LogInformation(LogMessages.StartingSolutionAnalysis);
+            logger.LogInformation(LogMessages.StartingProjectAnalysis);
+            logger.LogInformation(LogMessages.StartingDependencyAnalysis);
+            logger.LogInformation(LogMessages.StartingRiskAnalysis);
+
+            return 0;
         }
     }
 }

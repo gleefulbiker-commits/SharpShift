@@ -2,7 +2,7 @@
   "profiles": {
     "SharpShift": {
       "commandName": "Project",
-      "commandLineArgs": "scan C:\\Users\\Kerry\\source\\repos\\AzDevOpsDemoGenerator-kgl\\src"
+      "commandLineArgs": "analyze C:\\Users\\Kerry\\source"
     }
   }
 }
