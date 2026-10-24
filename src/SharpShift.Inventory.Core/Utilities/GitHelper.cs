@@ -53,7 +53,14 @@ namespace SharpShift.Inventory.Core.Utilities
                 if (!string.IsNullOrWhiteSpace(parent) && !Directory.Exists(parent))
                     Directory.CreateDirectory(parent);
 
-                logger?.LogInformation("Cloning repository {RepoUrl} into {TargetDir}", repoUrl, targetDir);
+                if(logger is not null)
+                {
+                    logger.LogInformation("Starting git clone operation.");
+                    logger.LogInformation("Repository URL: {RepoUrl}", repoUrl);
+                    logger.LogInformation("Target Directory: {TargetDir}", targetDir);
+                    logger.LogInformation("Clone Depth: {Depth}", depth);
+                    logger.LogInformation("Timeout (ms): {TimeoutMs}", timeoutMs);
+                }
                 var args = $"clone --depth {depth} {repoUrl} \"{targetDir}\"";
                 var psi = new ProcessStartInfo("git", args)
                 {

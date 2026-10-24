@@ -33,6 +33,12 @@ namespace SharpShift.Inventory.Core.Utilities
         [GeneratedRegex("<\\s*Project\\b(?:\\s+Sdk\\s*=\\s*(?:\"(?<sdk>[^\"]*)\"|'(?<sdk>[^']*)'))?[^>]*>", RegexOptions.Compiled)]
         public static partial Regex ProjectRegex();
 
+        internal static partial class Log
+        {
+            [LoggerMessage(EventId = 1001, Level = LogLevel.Warning,
+                Message = "Project evaluation returned null for {ProjectPath}")]
+            public static partial void ProjectEvaluationNull(ILogger logger, string projectPath);
+        }
         /// <summary>
         /// Clear the solution evaluator cache and reset ProjectEvaluator cache as well.
         /// </summary>
@@ -66,7 +72,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 if (projectMatches.Count == 0)
                 {
                     // No projects found in the solution file
-                    logger?.LogInformation("No projects found in solution file {SolutionPath}", solutionInventory.SolutionPath);
+                    Log.ProjectEvaluationNull(logger!, solutionInventory.SolutionPath);
                     return solutionInventory;
                 }
             }
@@ -160,33 +166,45 @@ namespace SharpShift.Inventory.Core.Utilities
         {
             try
             {
-                var doc = XDocument.Load(solutionInventory.SolutionPath);
-                if (doc.Root is null)
-                    return solutionInventory;
-
-                try
+                if(solutionInventory is null ||
+                    string.IsNullOrWhiteSpace(solutionInventory.SolutionPath) ||
+                    !File.Exists(solutionInventory.SolutionPath))
                 {
-                    var projects = doc.XPathSelectElements("/Solution/Project").ToList();
-                    projects.ForEach(el =>
+                    logger?.LogWarning("Solution file path is empty or missing: {SolutionPath}", solutionInventory?.SolutionPath);
+                    return solutionInventory ?? new SolutionInventory();
+                }
+                else
+                {
+                    var doc = XDocument.Load(solutionInventory.SolutionPath);
+
+                    logger?.LogInformation("Evaluating .slnx solution properties for {SolutionPath}", solutionInventory.SolutionPath);
+                    if (doc.Root is null)
+                        return solutionInventory;
+
+                    try
                     {
-                        var projectPath = Path.Combine(Path.GetDirectoryName(solutionInventory?.SolutionPath ?? string.Empty), el.Attribute("Path")?.Value ?? string.Empty);
-                        if (!string.IsNullOrEmpty(projectPath))
+                        var projects = doc.XPathSelectElements("/Solution/Project").ToList();
+                        projects.ForEach(el =>
                         {
-                            var project = ProjectEvaluator.EvaluateProjectProperties(projectPath, logger);
-                            if (project is not null)
-                                solutionInventory.Projects.Add(project);
-                            else
-                                logger?.LogWarning("Project evaluation returned null for {ProjectPath}", projectPath);
-                        }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    // invalid XML fragment — return empty map
-                    throw new InvalidOperationException($"The solution file '{solutionInventory.SolutionPath}' is not a valid XML document.", ex);
-                }
+                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionInventory?.SolutionPath ?? string.Empty), el.Attribute("Path")?.Value ?? string.Empty);
+                            if (!string.IsNullOrEmpty(projectPath))
+                            {
+                                var project = ProjectEvaluator.EvaluateProjectProperties(projectPath, logger);
+                                if (project is not null)
+                                    solutionInventory.Projects.Add(project);
+                                else
+                                    logger?.LogWarning("Project evaluation returned null for {ProjectPath}", projectPath);
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        // invalid XML fragment — return empty map
+                        throw new InvalidOperationException($"The solution file '{solutionInventory.SolutionPath}' is not a valid XML document.", ex);
+                    }
 
-                return solutionInventory;
+                    return solutionInventory;
+                }
             }
             catch (Exception ex)
             {
@@ -197,10 +215,8 @@ namespace SharpShift.Inventory.Core.Utilities
 
         static void ProcessElement(string solutionPath, XElement el, string path, SolutionInventory solutionInventory, ILogger? logger = null)
         {
-            var elementName = el.Name.LocalName;
-            var firstAttribute = el.FirstAttribute?.Value ?? string.Empty;
-
             var children = el.Elements().ToList();
+
             if (children.Count == 0)
             {
                 var val = (el.Value ?? string.Empty).Trim();
