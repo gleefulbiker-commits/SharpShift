@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SharpShift.Inventory.Core\SharpShift.Inventory.Core.csproj" />
+    <ProjectReference Include="..\SharpShift.Inventory.DependencyAnalysis\SharpShift.Inventory.DependencyAnalysis.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Build" Version="17.9.5" ExcludeAssets="runtime" />

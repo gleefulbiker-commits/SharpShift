@@ -25,7 +25,7 @@ namespace SharpShift.Inventory.Core.Models
         /// <summary>
         /// Discovered dependencies for the project.
         /// </summary>
-        public List<DependencyInventory> Dependencies { get; set; } = [];
+        public Dictionary<string, DependencySummary> Dependencies { get; set; } = new Dictionary<string, DependencySummary>();
 
         /// <summary>
         /// Risk findings associated with this project.

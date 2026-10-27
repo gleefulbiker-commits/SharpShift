@@ -1,11 +1,17 @@
 ﻿using Microsoft.Build.Framework;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SharpShift.Inventory.Cli;
 using SharpShift.Inventory.Core.Interfaces;
+using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Discovery;
+using SharpShift.Inventory.ProjectAnalysis;
 using SharpShift.LoggerMessages;
 using System;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 
 namespace SharpShift
@@ -26,11 +32,27 @@ namespace SharpShift
                 });
             });
             services.AddSingleton<ISolutionDiscoverer, SolutionDiscoverer>();
-            services.AddSingleton<IProjectDiscoverer, ProjectDiscoverer>();
 
             using var provider = services.BuildServiceProvider();
             var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("SharpShift.Program");
+
+            var resolver = new InventoryTypeInfoResolver
+            {
+                Modifiers =
+                {
+                    typeInfo =>
+                    {
+                        if (typeInfo.Type == typeof(Person))
+                        {
+                            // Example: rename a property at runtime
+                            var nameProp = typeInfo.Properties.FirstOrDefault(p => p.Name == "Name");
+                            if (nameProp is not null)
+                                nameProp.Name = "full_name";
+                        }
+                    }
+                }
+            };
 
             try
             {
@@ -43,15 +65,21 @@ namespace SharpShift
 
                 if (args.Length >= 2)
                 {
-                    var (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned) = ParseArguments(args);
+                    var configuration = new ConfigurationBuilder()
+                        .AddJsonFile("appsettings.json", optional: true)
+                        .Build();
+
+                    var defaultInventoryFilename = configuration["OutputFilename"] ?? "inventory.json";
+                    var defaultAnalysisFilename = configuration["AnalysisOutputFilename"] ?? "analysis.json";
+                    var (path, output, analysisOutput, requireMsBuild, retryAttempts, clean, analyzeCloned) = ParseArguments(args, defaultInventoryFilename, defaultAnalysisFilename);
 
                     var result = args[0].ToLower() switch
                     {
                         "scan" => await ScanRepositories(path, output, requireMsBuild, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
-                        "analyze" => await AnalyzeEstate(path, output, requireMsBuild, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
+                        "analyze" => await AnalyzeEstate(path, output, analysisOutput, requireMsBuild, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
                         _ => throw new InvalidOperationException($"Invalid command. '{args[0]}' is not a valid subcommand.")
                     };
-                    
+
                     return result;
                 }
             }
@@ -71,13 +99,15 @@ namespace SharpShift
         public static (
             string path,
             string output,
+            string analysisOutput,
             bool requireMsBuild,
             int retryAttempts,
             bool clean,
-            bool analyzeCloned) ParseArguments(string[] args)
+            bool analyzeCloned) ParseArguments(string[] args, string defaultOutputFilename, string defaultAnalysisFilename)
         {
             var path = args[1];
-            var output = "inventory.json";
+            var output = defaultOutputFilename;
+            var analysisOutput = defaultAnalysisFilename;
             var requireMsBuild = false;
             var retryAttempts = 0;
             var clean = false;
@@ -107,7 +137,7 @@ namespace SharpShift
                 i += handler();
             }
 
-            return (path, output, requireMsBuild, retryAttempts, clean, analyzeCloned);
+            return (path, output, analysisOutput, requireMsBuild, retryAttempts, clean, analyzeCloned);
         }
 
         public static async Task<int> ScanRepositories(
@@ -124,15 +154,15 @@ namespace SharpShift
             logger.LogInformation("Starting scan for {Path} with output {OutputFile}", path, output);
 
             var sol = provider.GetRequiredService<ISolutionDiscoverer>();
-            var proj = provider.GetRequiredService<IProjectDiscoverer>();
             var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
 
-            return await InventoryCliRunner.RunAsync(path, output, sol, proj, requireMsBuild, retryAttempts, clean, analyzeCloned, runnerLogger);
+            return await InventoryCliRunner.RunAsync(path, output, sol, retryAttempts, clean, analyzeCloned, runnerLogger);
         }
 
         public static async Task<int> AnalyzeEstate(
                     string path,
                     string output,
+                    string analysisOutput,
                     bool requireMsBuild,
                     int retryAttempts,
                     bool clean,
@@ -144,10 +174,22 @@ namespace SharpShift
             // Add logic for analyzing solutions, projects, dependencies, then risks
 
             LogMessages.StartingAnalysis(logger, path, output);
+            var fullyqualifiedOutputPath = Path.Combine(path, output);
+            var solutions = JsonSerializer.Deserialize<List<SolutionInventory>>(File.ReadAllText(fullyqualifiedOutputPath), new JsonSerializerOptions { TypeInfoResolver = InventoryTypeInfoResolver.Instance }) ?? new List<SolutionInventory>();
             logger.LogInformation(LogMessages.StartingSolutionAnalysis);
             logger.LogInformation(LogMessages.StartingProjectAnalysis);
+
+            var projectAnalyzer = provider.GetRequiredService<IProjectAnalyzer>();
+            var result = await projectAnalyzer.AnalyzeAsync(logger, solutions);
             logger.LogInformation(LogMessages.StartingDependencyAnalysis);
+
+            var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
+            var fullPath = Path.Combine(path, output);
+
             logger.LogInformation(LogMessages.StartingRiskAnalysis);
+
+            File.WriteAllText(fullPath, json);
+            logger?.LogInformation("Wrote inventory to {OutputPath}", fullPath);
 
             return 0;
         }

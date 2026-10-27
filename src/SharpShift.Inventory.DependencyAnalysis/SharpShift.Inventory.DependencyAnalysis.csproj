@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SharpShift.Inventory.Core\SharpShift.Inventory.Core.csproj" />
+    <ProjectReference Include="..\SharpShift.LoggerMessages\SharpShift.LoggerMessages.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -53,7 +53,6 @@ namespace SharpShift.Inventory.Tests
                     temp,
                     output,
                     new SolutionDiscoverer(),
-                    new ProjectDiscoverer(),
                     logger: NullLogger.Instance);
                 Assert.AreEqual(0, code, "Runner did not return success code");
 

@@ -25,8 +25,6 @@ namespace SharpShift.Inventory.Cli
             string rootPath,
             string outputFile,
             SharpShift.Inventory.Core.Interfaces.ISolutionDiscoverer? solutionDiscoverer = null,
-            SharpShift.Inventory.Core.Interfaces.IProjectDiscoverer? projectDiscoverer = null,
-            bool requireMsBuild = false,
             int retryAttempts = 0,
             bool clean = false,
             bool analyzeCloned = false,
@@ -105,8 +103,8 @@ namespace SharpShift.Inventory.Cli
                 }
 
                 var json = JsonSerializer.Serialize(allSolutions, options);
-
                 var fullPath = Path.Combine(rootPath, outputFile);
+
                 File.WriteAllText(fullPath, json);
                 logger?.LogInformation("Wrote inventory to {OutputPath}", fullPath);
                 return 0;
