@@ -33,14 +33,21 @@ namespace SharpShift.Inventory.DependencyAnalysis
                             result.Dependencies.Add(dep.Name, new DependencySummary
                             {
                                 Name = dep.Name,
-                                Version = dep.Version,
                                 DependencyType = dep.DependencyType,
                                 HintPath = dep.HintPath,
                                 OtherMetadata = dep.OtherMetadata,
                                 Source = string.IsNullOrWhiteSpace(dep.Source) ? dep.DependencyType : dep.Source,
                                 TotalInstances = 1
                             });
-
+                            result.Dependencies[dep.Name].Version ??= [];
+                            if(result.Dependencies[dep.Name].Version.TryGetValue(dep.Version, out var count))
+                            {
+                                result.Dependencies[dep.Name].Version[dep.Version] = count + 1;
+                            }
+                            else
+                            {
+                                result.Dependencies[dep.Name].Version.TryAdd(dep.Version, 1);
+                            }
                         }
                         else
                         {

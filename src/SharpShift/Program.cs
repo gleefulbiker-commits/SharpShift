@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SharpShift.Inventory.Cli;
+using SharpShift.Inventory.Core;
 using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Discovery;
@@ -36,23 +37,6 @@ namespace SharpShift
             using var provider = services.BuildServiceProvider();
             var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("SharpShift.Program");
-
-            var resolver = new InventoryTypeInfoResolver
-            {
-                Modifiers =
-                {
-                    typeInfo =>
-                    {
-                        if (typeInfo.Type == typeof(Person))
-                        {
-                            // Example: rename a property at runtime
-                            var nameProp = typeInfo.Properties.FirstOrDefault(p => p.Name == "Name");
-                            if (nameProp is not null)
-                                nameProp.Name = "full_name";
-                        }
-                    }
-                }
-            };
 
             try
             {
@@ -171,20 +155,28 @@ namespace SharpShift
                     IServiceProvider provider,
                     Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
         {
+
+            var resolver = new DefaultJsonTypeInfoResolver();
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                TypeInfoResolver = resolver
+            };
+
             // Add logic for analyzing solutions, projects, dependencies, then risks
 
             LogMessages.StartingAnalysis(logger, path, output);
             var fullyqualifiedOutputPath = Path.Combine(path, output);
-            var solutions = JsonSerializer.Deserialize<List<SolutionInventory>>(File.ReadAllText(fullyqualifiedOutputPath), new JsonSerializerOptions { TypeInfoResolver = InventoryTypeInfoResolver.Instance }) ?? new List<SolutionInventory>();
+            var solutions = JsonSerializer.Deserialize<List<SolutionInventory>>(File.ReadAllText(fullyqualifiedOutputPath), options) ?? new List<SolutionInventory>();
             logger.LogInformation(LogMessages.StartingSolutionAnalysis);
-            logger.LogInformation(LogMessages.StartingProjectAnalysis);
 
-            var projectAnalyzer = provider.GetRequiredService<IProjectAnalyzer>();
-            var result = await projectAnalyzer.AnalyzeAsync(logger, solutions);
+            logger.LogInformation(LogMessages.StartingProjectAnalysis);
+            var result = await ProjectAnalyzer.AnalyzeAsync(logger, solutions);
+
             logger.LogInformation(LogMessages.StartingDependencyAnalysis);
 
-            var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
-            var fullPath = Path.Combine(path, output);
+            var json = JsonSerializer.Serialize(result, options);
+            var fullPath = Path.Combine(path, analysisOutput);
 
             logger.LogInformation(LogMessages.StartingRiskAnalysis);
 

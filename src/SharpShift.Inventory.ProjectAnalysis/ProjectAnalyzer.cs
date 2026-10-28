@@ -12,17 +12,9 @@ namespace SharpShift.Inventory.ProjectAnalysis;
 /// <summary>
 /// Analyzes projects and extracts metadata relevant to inventory and dependencies.
 /// </summary>
-public class ProjectAnalyzer : IProjectAnalyzer
+public static class ProjectAnalyzer
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ProjectAnalyzer"/> class.
-    /// </summary>
-    public ProjectAnalyzer()
-    {
-        // TODO: Inject project parsers and analyzers.
-    }
-
-    public async Task<ProjectAnalysisResult?> AnalyzeAsync(ILogger logger, IList<SolutionInventory> solutions)
+    public static async Task<ProjectAnalysisResult?> AnalyzeAsync(ILogger logger, IList<SolutionInventory> solutions)
     {
         var result = new ProjectAnalysisResult
         {

@@ -18,7 +18,7 @@ namespace SharpShift.Inventory.Core.Models
         /// <summary>
         /// Version string reported by the project file or package metadata.
         /// </summary>
-        public string? Version { get; set; }
+        public Dictionary<string, int>? Version { get; set; }
 
         /// <summary>
         /// Source of the dependency (e.g., "NuGet", "GAC", "COM", "SDK").
