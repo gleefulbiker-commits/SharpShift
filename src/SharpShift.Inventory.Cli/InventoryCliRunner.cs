@@ -84,9 +84,9 @@ namespace SharpShift.Inventory.Cli
                         if (File.Exists(outputFile))
                             File.Delete(outputFile);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        logger?.LogWarning("Failed to delete previous output file during clean run: {OutputFile}", outputFile);
+                        logger?.LogWarning(ex, "Failed to delete previous output file during clean run: {OutputFile}", outputFile);
                     }
 
                     // clear evaluator cache

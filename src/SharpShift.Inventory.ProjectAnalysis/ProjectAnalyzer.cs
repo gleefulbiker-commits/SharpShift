@@ -44,7 +44,7 @@ public static class ProjectAnalyzer
         }
         catch (Exception ex)
         {
-
+            logger.LogError(ex, "Project analysis failed while processing discovered solutions.");
             throw;
         }
     }

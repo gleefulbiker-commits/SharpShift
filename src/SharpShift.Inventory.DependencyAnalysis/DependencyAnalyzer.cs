@@ -60,9 +60,9 @@ namespace SharpShift.Inventory.DependencyAnalysis
                     LogMessages.NoDependenciesFound(logger, project.ProjectPath);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // swallow errors
+                logger.LogWarning(ex, "Failed to aggregate dependencies for project {ProjectPath}", project.ProjectPath);
             }
 
             return Task.FromResult(result);

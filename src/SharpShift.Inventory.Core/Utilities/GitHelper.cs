@@ -80,7 +80,11 @@ namespace SharpShift.Inventory.Core.Utilities
                 var completed = proc.WaitForExit(timeoutMs);
                 if (!completed)
                 {
-                    try { proc.Kill(); } catch { }
+                    try { proc.Kill(); }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Failed to terminate timed out git clone process for {RepoUrl}", repoUrl);
+                    }
                     logger?.LogWarning("Git clone timed out for {RepoUrl} after {TimeoutMs} ms", repoUrl, timeoutMs);
                     return false;
                 }
