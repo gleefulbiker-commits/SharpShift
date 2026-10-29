@@ -1,3 +1,4 @@
+using SharpShift.LoggerMessages;
 using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -106,7 +107,7 @@ namespace SharpShift.Inventory.Cli
                 var fullPath = Path.Combine(rootPath, outputFile);
 
                 File.WriteAllText(fullPath, json);
-                logger?.LogInformation("Wrote inventory to {OutputPath}", fullPath);
+                LogMessages.WritingInventory(logger, fullPath);
                 return 0;
             }
             catch (Exception ex)
@@ -140,20 +141,7 @@ namespace SharpShift.Inventory.Cli
 
             tf = tf.Trim();
 
-            var map = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "net48", ".NET Framework 4.8" },
-                { "net472", ".NET Framework 4.7.2" },
-                { "net471", ".NET Framework 4.7.1" },
-                { "net462", ".NET Framework 4.6.2" },
-                { "net461", ".NET Framework 4.6.1" },
-                { "netcoreapp3.1", ".NET Core 3.1" },
-                { "netcoreapp2.1", ".NET Core 2.1" },
-                { "netstandard2.0", ".NET Standard 2.0" },
-                { "netstandard2.1", ".NET Standard 2.1" }
-            };
-
-            if (map.TryGetValue(tf, out var friendly))
+            if (FrameworkNormalizer.FrameworkMap.TryGetValue(tf, out var friendly))
                 return friendly;
 
             var m = NetRegex().Match(tf);

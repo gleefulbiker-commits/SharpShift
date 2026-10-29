@@ -16,6 +16,9 @@ namespace SharpShift.LoggerMessages
         [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "Writing inventory to '{OutputFile}'")]
         public static partial void WritingInventory(ILogger logger, string outputFile);
 
+        [LoggerMessage(EventId = 3001, Level = LogLevel.Information, Message = "Writing analysis results to '{OutputFile}'")]
+        public static partial void WritingAnalysisResults(ILogger logger, string outputFile);
+
         // Solution analysis messages
         [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "Starting analysis for '{Path}' with output '{OutputFile}'")]
         public static partial void StartingAnalysis(ILogger logger, string path, string outputFile);

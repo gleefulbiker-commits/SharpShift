@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SharpShift.Inventory.Discovery\SharpShift.Inventory.Discovery.csproj" />
+    <ProjectReference Include="..\SharpShift.LoggerMessages\SharpShift.LoggerMessages.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />

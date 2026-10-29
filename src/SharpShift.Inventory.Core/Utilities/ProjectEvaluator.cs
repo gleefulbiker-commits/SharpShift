@@ -26,23 +26,6 @@ namespace SharpShift.Inventory.Core.Utilities
         }
 
         /// <summary>
-        /// Attempts to evaluate common project properties from a project dictionary.
-        /// Returns a dictionary of property name->value when successful; otherwise null.
-        /// Caches results per project path to reduce overhead.
-        /// </summary>
-        //public static ProjectInventory EvaluateProjectProperties(ProjectInventory projectInventory)
-        //{
-        //    if (projectInventory is null)
-        //        return null;
-
-        //    var projectPath = projectInventory.ProjectPath;
-        //    if (string.IsNullOrWhiteSpace(projectPath))
-        //        return null;
-
-        //    return EvaluateProjectProperties(projectInventory);
-        //}
-
-        /// <summary>
         /// Attempts to evaluate common project properties from a .csproj file using literal XML values.
         /// </summary>
         public static ProjectInventory? EvaluateProjectProperties(string? projectPath)
