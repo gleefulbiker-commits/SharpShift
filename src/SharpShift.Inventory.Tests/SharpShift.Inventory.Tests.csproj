@@ -19,6 +19,7 @@
     <ProjectReference Include="..\SharpShift.Inventory.Discovery\SharpShift.Inventory.Discovery.csproj" />
     <ProjectReference Include="..\SharpShift.Inventory.ProjectAnalysis\SharpShift.Inventory.ProjectAnalysis.csproj" />
     <ProjectReference Include="..\SharpShift.Inventory.DependencyAnalysis\SharpShift.Inventory.DependencyAnalysis.csproj" />
+    <ProjectReference Include="..\SharpShift.Inventory.Reporting\SharpShift.Inventory.Reporting.csproj" />
   </ItemGroup>
 
 </Project>

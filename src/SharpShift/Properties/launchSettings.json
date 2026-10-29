@@ -2,7 +2,7 @@
   "profiles": {
     "SharpShift": {
       "commandName": "Project",
-      "commandLineArgs": "analyze C:\\Users\\Kerry\\source"
+      "commandLineArgs": "report C:\\Users\\Kerry\\source"
     }
   }
 }

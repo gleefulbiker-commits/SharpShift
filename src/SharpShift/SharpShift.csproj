@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SharpShift.Inventory.Cli\SharpShift.Inventory.Cli.csproj" />
     <ProjectReference Include="..\SharpShift.Inventory.ProjectAnalysis\SharpShift.Inventory.ProjectAnalysis.csproj" />
+    <ProjectReference Include="..\SharpShift.Inventory.Reporting\SharpShift.Inventory.Reporting.csproj" />
     <ProjectReference Include="..\SharpShift.LoggerMessages\SharpShift.LoggerMessages.csproj" />
   </ItemGroup>
 
