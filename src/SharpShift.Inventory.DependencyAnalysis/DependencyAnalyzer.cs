@@ -13,12 +13,15 @@ namespace SharpShift.Inventory.DependencyAnalysis
     /// <summary>
     /// Analyzer that extracts PackageReference and Reference items using MSBuild evaluation when available.
     /// </summary>
-    public class DependencyAnalyzer
+    public static class DependencyAnalyzer
     {
-        public Task<ProjectAnalysisResult> AnalyzeAsync(ILogger logger, ProjectInventory project, ProjectAnalysisResult result)
+        public static Task<ProjectAnalysisResult> AnalyzeAsync(ILogger logger, ProjectInventory project, ProjectAnalysisResult result)
         {
-            if (project is null ||
-                string.IsNullOrWhiteSpace(project.ProjectPath) ||
+            ArgumentNullException.ThrowIfNull(logger, nameof(logger));
+            ArgumentNullException.ThrowIfNull(project, nameof(project));
+            ArgumentNullException.ThrowIfNull(result, nameof(result));
+
+            if (string.IsNullOrWhiteSpace(project.ProjectPath) ||
                 !File.Exists(project.ProjectPath))
                 throw new ArgumentException("Invalid project path.", nameof(project));
 
@@ -28,6 +31,7 @@ namespace SharpShift.Inventory.DependencyAnalysis
                 {
                     foreach (var dep in project.Dependencies)
                     {
+                        ArgumentNullException.ThrowIfNull(dep, nameof(dep));
                         if (!result.Dependencies.TryGetValue(dep.Name, out var existingDep))
                         {
                             result.Dependencies.Add(dep.Name, new DependencySummary

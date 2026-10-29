@@ -1,4 +1,5 @@
 using SharpShift.Inventory.Core.Models;
+using SharpShift.LoggerMessages;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -55,6 +56,8 @@ namespace SharpShift.Inventory.Core.Utilities
         /// </summary>
         public static SolutionInventory? EvaluateSolutionProjects(SolutionInventory solutionInventory, ILogger? logger = null)
         {
+            ArgumentNullException.ThrowIfNull(solutionInventory, nameof(solutionInventory));
+
             if (_cache.TryGetValue(solutionInventory.SolutionPath, out var cached))
                 return cached;
 
@@ -86,7 +89,7 @@ namespace SharpShift.Inventory.Core.Utilities
                 var projectId = match.Groups["projectid"].Value;
                 if (!string.IsNullOrEmpty(projectLocalPath))
                 {
-                    var absoluteProjectPath = Path.Combine(Path.GetDirectoryName(solutionInventory?.SolutionPath ?? string.Empty), projectLocalPath);
+                    var absoluteProjectPath = Path.Combine(Path.GetDirectoryName(solutionInventory.SolutionPath) ?? string.Empty, projectLocalPath);
                     solutionInventory.Projects.Add(new ProjectInventory
                     {
                         ProjectName = Path.GetFileNameWithoutExtension(absoluteProjectPath),
@@ -143,7 +146,7 @@ namespace SharpShift.Inventory.Core.Utilities
             {
                 if(Path.GetExtension(solutionPath).Equals(".slnx", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    _cache[solutionPath] = SolutionEvaluator.EvaluateSlnxProperties(solutionInventory, logger);
+                    _cache[solutionPath] = SolutionEvaluator.EvaluateSlnxProperties(logger, solutionInventory);
                     return solutionInventory;
                 }
 
@@ -162,22 +165,24 @@ namespace SharpShift.Inventory.Core.Utilities
         /// </summary>
         /// <param name="solutionInventory">A SolutionInventory object.</param>
         /// <returns>A SolutionInventory object with evaluated properties.</returns>
-        private static SolutionInventory EvaluateSlnxProperties(SolutionInventory solutionInventory, ILogger? logger = null)
+        private static SolutionInventory EvaluateSlnxProperties(ILogger? logger, SolutionInventory solutionInventory)
         {
+            ArgumentNullException.ThrowIfNull(logger, nameof(logger));
+            ArgumentNullException.ThrowIfNull(solutionInventory, nameof(solutionInventory));
+
             try
             {
-                if(solutionInventory is null ||
-                    string.IsNullOrWhiteSpace(solutionInventory.SolutionPath) ||
-                    !File.Exists(solutionInventory.SolutionPath))
+                if(string.IsNullOrWhiteSpace(solutionInventory.SolutionPath) ||
+                   !File.Exists(solutionInventory.SolutionPath))
                 {
-                    logger?.LogWarning("Solution file path is empty or missing: {SolutionPath}", solutionInventory?.SolutionPath);
-                    return solutionInventory ?? new SolutionInventory();
+                    logger?.LogWarning("Solution file path is empty or missing: {SolutionPath}", solutionInventory.SolutionPath);
+                    return solutionInventory;
                 }
                 else
                 {
                     var doc = XDocument.Load(solutionInventory.SolutionPath);
 
-                    logger?.LogInformation("Evaluating .slnx solution properties for {SolutionPath}", solutionInventory.SolutionPath);
+                    LogMessages.EvaluatingSolutionProperties(logger, solutionInventory.SolutionPath);
                     if (doc.Root is null)
                         return solutionInventory;
 
@@ -186,7 +191,7 @@ namespace SharpShift.Inventory.Core.Utilities
                         var projects = doc.XPathSelectElements("/Solution/Project").ToList();
                         projects.ForEach(el =>
                         {
-                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionInventory?.SolutionPath ?? string.Empty), el.Attribute("Path")?.Value ?? string.Empty);
+                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionInventory.SolutionPath) ?? string.Empty, el.Attribute("Path")?.Value ?? string.Empty);
                             if (!string.IsNullOrEmpty(projectPath))
                             {
                                 var project = ProjectEvaluator.EvaluateProjectProperties(projectPath, logger);
@@ -234,7 +239,7 @@ namespace SharpShift.Inventory.Core.Utilities
                     switch (child.Name.LocalName)
                     {
                         case "Project":
-                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionPath ?? string.Empty), child.Attribute("Path")?.Value ?? string.Empty);
+                            var projectPath = Path.Combine(Path.GetDirectoryName(solutionPath) ?? string.Empty, child.Attribute("Path")?.Value ?? string.Empty);
                             if (!string.IsNullOrEmpty(projectPath))
                             {
                                 var project = ProjectEvaluator.EvaluateProjectProperties(projectPath, logger);

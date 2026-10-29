@@ -18,8 +18,8 @@ public static class ProjectAnalyzer
     {
         var result = new ProjectAnalysisResult
         {
-            Dependencies = new Dictionary<string, DependencySummary>(),
-            RiskFindings = new List<RiskFinding>()
+            Dependencies = [],
+            RiskFindings = []
         };
 
         if (solutions is null || solutions.Count == 0)
@@ -30,13 +30,11 @@ public static class ProjectAnalyzer
 
         try
         {
-            var dependecyAnalyzer = new DependencyAnalyzer();
-
             foreach (var solution in solutions)
             {
                 foreach (var project in solution.Projects)
                 {
-                    result = await dependecyAnalyzer.AnalyzeAsync(logger, project, result);
+                    result = await DependencyAnalyzer.AnalyzeAsync(logger, project, result);
                 }
             }
 

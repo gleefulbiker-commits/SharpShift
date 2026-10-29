@@ -55,12 +55,12 @@ namespace SharpShift
 
                     var defaultInventoryFilename = configuration["OutputFilename"] ?? "inventory.json";
                     var defaultAnalysisFilename = configuration["AnalysisOutputFilename"] ?? "analysis.json";
-                    var (path, output, analysisOutput, requireMsBuild, retryAttempts, clean, analyzeCloned) = ParseArguments(args, defaultInventoryFilename, defaultAnalysisFilename);
+                    var (path, output, analysisOutput, retryAttempts, clean, analyzeCloned) = ParseArguments(args, defaultInventoryFilename, defaultAnalysisFilename);
 
                     var result = args[0].ToLower() switch
                     {
-                        "scan" => await ScanRepositories(path, output, requireMsBuild, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
-                        "analyze" => await AnalyzeEstate(path, output, analysisOutput, requireMsBuild, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
+                        "scan" => await ScanRepositories(path, output, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
+                        "analyze" => await AnalyzeEstate(path, output, analysisOutput, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory),
                         _ => throw new InvalidOperationException($"Invalid command. '{args[0]}' is not a valid subcommand.")
                     };
 
@@ -84,7 +84,6 @@ namespace SharpShift
             string path,
             string output,
             string analysisOutput,
-            bool requireMsBuild,
             int retryAttempts,
             bool clean,
             bool analyzeCloned) ParseArguments(string[] args, string defaultOutputFilename, string defaultAnalysisFilename)
@@ -92,7 +91,6 @@ namespace SharpShift
             var path = args[1];
             var output = defaultOutputFilename;
             var analysisOutput = defaultAnalysisFilename;
-            var requireMsBuild = false;
             var retryAttempts = 0;
             var clean = false;
             var analyzeCloned = false;
@@ -107,8 +105,6 @@ namespace SharpShift
                 {
                     "--output" when i + 1 < args.Length => () => { output = args[i + 1]; return 1; }
                     ,
-                    "--require-msbuild" => () => { requireMsBuild = true; return 0; }
-                    ,
                     "--retry" when i + 1 < args.Length => () => { if (int.TryParse(args[i + 1], out var rr)) retryAttempts = rr; return 1; }
                     ,
                     "--clean" => () => { clean = true; return 0; }
@@ -121,13 +117,12 @@ namespace SharpShift
                 i += handler();
             }
 
-            return (path, output, analysisOutput, requireMsBuild, retryAttempts, clean, analyzeCloned);
+            return (path, output, analysisOutput, retryAttempts, clean, analyzeCloned);
         }
 
         public static async Task<int> ScanRepositories(
             string path,
             string output,
-            bool requireMsBuild,
             int retryAttempts,
             bool clean,
             bool analyzeCloned,
@@ -135,7 +130,7 @@ namespace SharpShift
             IServiceProvider provider,
             Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
         {
-            logger.LogInformation("Starting scan for {Path} with output {OutputFile}", path, output);
+            LogMessages.StartingSolutionScan(logger, path, output);
 
             var sol = provider.GetRequiredService<ISolutionDiscoverer>();
             var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
@@ -147,7 +142,6 @@ namespace SharpShift
                     string path,
                     string output,
                     string analysisOutput,
-                    bool requireMsBuild,
                     int retryAttempts,
                     bool clean,
                     bool analyzeCloned,
@@ -167,7 +161,7 @@ namespace SharpShift
 
             LogMessages.StartingAnalysis(logger, path, output);
             var fullyqualifiedOutputPath = Path.Combine(path, output);
-            var solutions = JsonSerializer.Deserialize<List<SolutionInventory>>(File.ReadAllText(fullyqualifiedOutputPath), options) ?? new List<SolutionInventory>();
+            var solutions = JsonSerializer.Deserialize<List<SolutionInventory>>(File.ReadAllText(fullyqualifiedOutputPath), options) ?? [];
             logger.LogInformation(LogMessages.StartingSolutionAnalysis);
 
             logger.LogInformation(LogMessages.StartingProjectAnalysis);
@@ -181,7 +175,7 @@ namespace SharpShift
             logger.LogInformation(LogMessages.StartingRiskAnalysis);
 
             File.WriteAllText(fullPath, json);
-            logger?.LogInformation("Wrote inventory to {OutputPath}", fullPath);
+            LogMessages.WritingInventory(logger, fullPath);
 
             return 0;
         }

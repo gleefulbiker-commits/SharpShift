@@ -4,6 +4,18 @@ namespace SharpShift.LoggerMessages
 {
     public static partial class LogMessages
     {
+        // Solution scanning messages
+        [LoggerMessage(EventId = 1000, Level = LogLevel.Information, Message = "Starting solution scan for '{Path}' with output '{OutputFile}'")]
+        public static partial void StartingSolutionScan(ILogger logger, string path, string outputFile);
+
+        // Solution discovery messages
+        [LoggerMessage(EventId = 2000, Level = LogLevel.Information, Message = "Evaluating .slnx solution properties for {SolutionPath}")]
+        public static partial void EvaluatingSolutionProperties(ILogger logger, string solutionPath);
+
+        // Writing inventory messages
+        [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "Writing inventory to '{OutputFile}'")]
+        public static partial void WritingInventory(ILogger logger, string outputFile);
+
         // Solution analysis messages
         [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "Starting analysis for '{Path}' with output '{OutputFile}'")]
         public static partial void StartingAnalysis(ILogger logger, string path, string outputFile);
