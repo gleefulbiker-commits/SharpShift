@@ -7,6 +7,7 @@ using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Discovery;
 using SharpShift.Inventory.ProjectAnalysis;
 using SharpShift.Inventory.Reporting;
+using SharpShift.Inventory.DependencyAnalysis;
 using SharpShift.LoggerMessages;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -77,11 +78,11 @@ namespace SharpShift
             IServiceProvider provider,
             ILoggerFactory loggerFactory)
         {
-            var (path, output, analysisOutput, retryAttempts, clean, analyzeCloned) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
+            var (path, output, analysisOutput, retryAttempts, clean, analyzeCloned, dependencyHealthOptions) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
             if (isScan)
                 return await ScanRepositories(path, output, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory);
 
-            return await AnalyzeEstate(path, output, analysisOutput, retryAttempts, clean, logger);
+            return await AnalyzeEstate(path, output, analysisOutput, retryAttempts, clean, logger, dependencyHealthOptions);
         }
 
         public static (
@@ -90,7 +91,8 @@ namespace SharpShift
             string analysisOutput,
             int retryAttempts,
             bool clean,
-            bool analyzeCloned) ParseArguments(string[] args, string defaultOutputFilename, string defaultAnalysisFilename)
+            bool analyzeCloned,
+            DependencyHealthCheckOptions dependencyHealthOptions) ParseArguments(string[] args, string defaultOutputFilename, string defaultAnalysisFilename)
         {
             var path = args[1];
             var output = defaultOutputFilename;
@@ -98,6 +100,10 @@ namespace SharpShift
             var retryAttempts = 0;
             var clean = false;
             var analyzeCloned = false;
+            var enableDependencyHealthChecks = true;
+            var nuGetServiceIndexUrl = "https://api.nuget.org/v3/index.json";
+            var osvQueryUrl = "https://api.osv.dev/v1/query";
+            var dependencyHealthTimeoutSeconds = 10;
 
             for (int i = 2; i < args.Length; i++)
             {
@@ -109,13 +115,35 @@ namespace SharpShift
                     "--retry" when i + 1 < args.Length => () => { if (int.TryParse(args[i + 1], out var rr)) retryAttempts = rr; return 1; },
                     "--clean" => () => { clean = true; return 0; },
                     "--analyze-cloned" => () => { analyzeCloned = true; return 0; },
+                    "--no-dependency-health" => () => { enableDependencyHealthChecks = false; return 0; },
+                    "--nuget-service-index" when i + 1 < args.Length => () => { nuGetServiceIndexUrl = args[i + 1]; return 1; },
+                    "--osv-endpoint" when i + 1 < args.Length => () => { osvQueryUrl = args[i + 1]; return 1; },
+                    "--dependency-health-timeout" when i + 1 < args.Length => () =>
+                    {
+                        if (int.TryParse(args[i + 1], out var seconds) && seconds > 0)
+                            dependencyHealthTimeoutSeconds = seconds;
+                        return 1;
+                    },
                     _ => () => 0,
                 };
 
                 i += handler();
             }
 
-            return (path, output, analysisOutput, retryAttempts, clean, analyzeCloned);
+            return (
+                path,
+                output,
+                analysisOutput,
+                retryAttempts,
+                clean,
+                analyzeCloned,
+                new DependencyHealthCheckOptions
+                {
+                    EnableChecks = enableDependencyHealthChecks,
+                    NuGetServiceIndexUrl = nuGetServiceIndexUrl,
+                    OsvQueryUrl = osvQueryUrl,
+                    RequestTimeout = TimeSpan.FromSeconds(dependencyHealthTimeoutSeconds)
+                });
         }
 
         public static ReportOptions ParseReportArguments(string[] args, string defaultInventoryFilename, string defaultAnalysisFilename, string defaultReportBaseFilename)
@@ -194,7 +222,7 @@ namespace SharpShift
             var sol = provider.GetRequiredService<ISolutionDiscoverer>();
             var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
 
-            return await InventoryCliRunner.RunAsync(path, output, sol, retryAttempts, clean, analyzeCloned, runnerLogger);
+            return await InventoryCliRunner.RunAsync(runnerLogger, path, output, sol, retryAttempts, clean, analyzeCloned);
         }
 
         public static async Task<int> AnalyzeEstate(
@@ -203,7 +231,8 @@ namespace SharpShift
             string analysisOutput,
             int retryAttempts,
             bool clean,
-            ILogger logger)
+            ILogger logger,
+            DependencyHealthCheckOptions dependencyHealthOptions)
         {
             var resolver = new DefaultJsonTypeInfoResolver();
             var options = new JsonSerializerOptions
@@ -218,7 +247,7 @@ namespace SharpShift
             logger.LogInformation(LogMessages.StartingSolutionAnalysis);
 
             logger.LogInformation(LogMessages.StartingProjectAnalysis);
-            var result = await ProjectAnalyzer.AnalyzeAsync(logger, solutions);
+            var result = await ProjectAnalyzer.AnalyzeAsync(logger, solutions, dependencyHealthOptions);
 
             logger.LogInformation(LogMessages.StartingDependencyAnalysis);
 

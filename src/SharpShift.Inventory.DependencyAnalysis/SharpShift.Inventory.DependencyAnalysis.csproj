@@ -13,6 +13,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Build" Version="17.9.5" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.Build.Locator" Version="1.6.1" />
+    <PackageReference Include="NuGet.Protocol" Version="7.9.0" />
   </ItemGroup>
 
 </Project>

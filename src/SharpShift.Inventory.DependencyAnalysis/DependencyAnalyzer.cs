@@ -15,7 +15,7 @@ namespace SharpShift.Inventory.DependencyAnalysis
     /// </summary>
     public static class DependencyAnalyzer
     {
-        public static Task<ProjectAnalysisResult> AnalyzeAsync(ILogger logger, ProjectInventory project, ProjectAnalysisResult result)
+        public static async Task<ProjectAnalysisResult> AnalyzeAsync(ILogger logger, ProjectInventory project, ProjectAnalysisResult result)
         {
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
             ArgumentNullException.ThrowIfNull(project, nameof(project));
@@ -32,6 +32,8 @@ namespace SharpShift.Inventory.DependencyAnalysis
                     foreach (var dep in project.Dependencies)
                     {
                         ArgumentNullException.ThrowIfNull(dep, nameof(dep));
+                        ArgumentNullException.ThrowIfNull(dep.Name, nameof(dep.Name));
+
                         if (!result.Dependencies.TryGetValue(dep.Name, out var existingDep))
                         {
                             result.Dependencies.Add(dep.Name, new DependencySummary
@@ -43,19 +45,33 @@ namespace SharpShift.Inventory.DependencyAnalysis
                                 Source = string.IsNullOrWhiteSpace(dep.Source) ? dep.DependencyType : dep.Source,
                                 TotalInstances = 1
                             });
-                            result.Dependencies[dep.Name].Version ??= [];
-                            if(result.Dependencies[dep.Name].Version.TryGetValue(dep.Version, out var count))
+
+                            var dependencyName = dep.Name;
+                            result.Dependencies[dependencyName].Version ??= [];
+                            var versionKey = dep.Version ?? string.Empty;
+                            if (result.Dependencies[dependencyName].Version.TryGetValue(versionKey, out var count))
                             {
-                                result.Dependencies[dep.Name].Version[dep.Version] = count + 1;
+                                result.Dependencies[dependencyName].Version[versionKey] = count + 1;
                             }
                             else
                             {
-                                result.Dependencies[dep.Name].Version.TryAdd(dep.Version, 1);
+                                result.Dependencies[dependencyName].Version.TryAdd(versionKey, 1);
                             }
                         }
                         else
                         {
                             existingDep.TotalInstances++;
+                            existingDep.Version ??= [];
+
+                            var versionKey = dep.Version ?? string.Empty;
+                            if (existingDep.Version.TryGetValue(versionKey, out var count))
+                            {
+                                existingDep.Version[versionKey] = count + 1;
+                            }
+                            else
+                            {
+                                existingDep.Version.TryAdd(versionKey, 1);
+                            }
                         }
                     }
                 }
@@ -69,7 +85,7 @@ namespace SharpShift.Inventory.DependencyAnalysis
                 logger.LogWarning(ex, "Failed to aggregate dependencies for project {ProjectPath}", project.ProjectPath);
             }
 
-            return Task.FromResult(result);
+            return result;
         }
     }
 }

@@ -16,9 +16,9 @@ namespace SharpShift.Inventory.Tests
         public async Task InventoryCliRunner_InvalidPath_ReturnsNotFoundCode()
         {
             var code = await SharpShift.Inventory.Cli.InventoryCliRunner.RunAsync(
+                NullLogger.Instance,
                 "Z:\\path-that-does-not-exist-for-tests",
-                "inventory.json",
-                logger: NullLogger.Instance);
+                "inventory.json");
 
             Assert.AreEqual(2, code);
         }
@@ -50,10 +50,10 @@ namespace SharpShift.Inventory.Tests
                 var output = "inventory.json";
 
                 var code = await SharpShift.Inventory.Cli.InventoryCliRunner.RunAsync(
+                    NullLogger.Instance,
                     temp,
                     output,
-                    new SolutionDiscoverer(),
-                    logger: NullLogger.Instance);
+                    new SolutionDiscoverer());
                 Assert.AreEqual(0, code, "Runner did not return success code");
 
                 var outputPath = Path.Combine(temp, output);

@@ -7,6 +7,7 @@ Features
 - Normalize target frameworks (SDK and legacy).
 - Evaluate projects using MSBuild when available (reflection-based) with XML fallback.
 - Extract dependencies (PackageReference and Reference) including version, hint path, public key token, and additional metadata.
+- Analyze NuGet package dependencies for deprecations and known vulnerabilities.
 
 Recent changes (this commit)
 - Dependency metadata is now preserved as structured fields:
@@ -26,3 +27,7 @@ How to run
 Notes
 - MSBuild evaluation is best-effort; environments without MSBuild will fall back to XML parsing. The new test is skipped in those environments.
 - The inventory JSON now includes dependency details (`HintPath`, `PublicKeyToken`, `OtherMetadata`) for richer reporting.
+- Dependency health checks are best-effort and non-fatal. Network/API failures are logged as warnings and do not stop analysis.
+- Health checks currently target package dependencies with explicit versions. Dependencies without versions are not checked.
+- External data sources: NuGet V3 service index/registration endpoints (deprecations) and OSV API (vulnerabilities). Large scans may be affected by external rate limits.
+- Per-solution markdown now renders `Risk Findings` directly under solution overview/summary metadata for quicker visibility.

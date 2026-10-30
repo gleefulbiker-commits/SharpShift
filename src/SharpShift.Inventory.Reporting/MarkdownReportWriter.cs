@@ -93,6 +93,16 @@ internal sealed class MarkdownReportWriter : IReportWriter
         }
         lines.Add(string.Empty);
 
+        lines.Add("### Dependency Health Summary");
+        lines.Add(string.Empty);
+        var deprecatedCount = data.Analysis?.RiskFindings.Count(r =>
+            string.Equals(r.Category, "Dependency.Deprecated", StringComparison.OrdinalIgnoreCase)) ?? 0;
+        var vulnerableCount = data.Analysis?.RiskFindings.Count(r =>
+            string.Equals(r.Category, "Dependency.Vulnerability", StringComparison.OrdinalIgnoreCase)) ?? 0;
+        lines.Add($"- Deprecated package findings: {deprecatedCount}");
+        lines.Add($"- Vulnerability findings: {vulnerableCount}");
+        lines.Add(string.Empty);
+
         lines.Add("## Solutions");
         lines.Add(string.Empty);
         foreach (var solution in data.Solutions)
@@ -194,6 +204,23 @@ internal sealed class MarkdownReportWriter : IReportWriter
             }
             lines.Add(string.Empty);
         }
+
+        lines.Add("## Risk Findings");
+        lines.Add(string.Empty);
+        if (analysis?.RiskFindings.Count > 0)
+        {
+            lines.Add("| Category | Severity | Description | Evidence |");
+            lines.Add("|---|---|---|---|");
+            foreach (var finding in analysis.RiskFindings)
+            {
+                lines.Add($"| {Escape(finding.Category)} | {Escape(finding.Severity.ToString())} | {Escape(finding.Description)} | {Escape(finding.Evidence)} |");
+            }
+        }
+        else
+        {
+            lines.Add("No risk findings available.");
+        }
+        lines.Add(string.Empty);
 
         lines.Add("## Projects");
         lines.Add(string.Empty);

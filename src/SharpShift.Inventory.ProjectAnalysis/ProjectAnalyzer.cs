@@ -6,6 +6,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace SharpShift.Inventory.ProjectAnalysis;
 
@@ -14,7 +15,11 @@ namespace SharpShift.Inventory.ProjectAnalysis;
 /// </summary>
 public static class ProjectAnalyzer
 {
-    public static async Task<ProjectAnalysisResult?> AnalyzeAsync(ILogger logger, IList<SolutionInventory> solutions)
+    public static async Task<ProjectAnalysisResult?> AnalyzeAsync(
+        ILogger logger,
+        IList<SolutionInventory> solutions,
+        DependencyHealthCheckOptions? dependencyHealthOptions = null,
+        CancellationToken cancellationToken = default)
     {
         var result = new ProjectAnalysisResult
         {
@@ -37,6 +42,9 @@ public static class ProjectAnalyzer
                     result = await DependencyAnalyzer.AnalyzeAsync(logger, project, result);
                 }
             }
+
+            var healthAnalyzer = new DependencyHealthAnalyzer(options: dependencyHealthOptions);
+            await healthAnalyzer.AnalyzeAsync(logger, result, cancellationToken);
 
             return result;
         }

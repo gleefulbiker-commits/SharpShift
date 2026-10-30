@@ -23,21 +23,23 @@ namespace SharpShift.Inventory.Cli
         };
 
         public static async Task<int> RunAsync(
+            ILogger logger,
             string rootPath,
             string outputFile,
             SharpShift.Inventory.Core.Interfaces.ISolutionDiscoverer? solutionDiscoverer = null,
             int retryAttempts = 0,
             bool clean = false,
-            bool analyzeCloned = false,
-            ILogger? logger = null)
+            bool analyzeCloned = false)
         {
+            ArgumentNullException.ThrowIfNull(logger, nameof(logger));
+
             var allSolutions = new List<SolutionInventory>();
 
             try
             {
                 if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
                 {
-                    logger?.LogError("Path not found: {RootPath}", rootPath);
+                    logger.LogError("Path not found: {RootPath}", rootPath);
                     Console.Error.WriteLine($"Path not found: {rootPath}");
                     return 2;
                 }
@@ -59,11 +61,11 @@ namespace SharpShift.Inventory.Cli
                     {
                         if (sol.Source == "GitHub" && !string.IsNullOrWhiteSpace(sol.RepoUrl))
                         {
-                            logger?.LogInformation("Discovered remote GitHub repository: {RepoUrl} (archived: {IsArchived})", sol.RepoUrl, sol.IsArchived);
+                            LogMessages.DiscoveredRemoteGitHubRepository(logger, sol.RepoUrl, sol.IsArchived);
                         }
                         else if (sol.Source == "FileSystem" && !string.IsNullOrWhiteSpace(sol.LocalPath))
                         {
-                            logger?.LogInformation("Evaluating local solution file: {SolutionPath}", sol.LocalPath);
+                            LogMessages.EvaluatingLocalSolutionFile(logger, sol.LocalPath);
                             var solutionInventory = SolutionEvaluator.EvaluateSolutionProperties(sol.LocalPath, forceRefresh: true, logger);
                             if (solutionInventory is not null)
                             {
@@ -112,7 +114,7 @@ namespace SharpShift.Inventory.Cli
             }
             catch (Exception ex)
             {
-                logger?.LogError(ex, "Unhandled exception during inventory run for root path {RootPath}", rootPath);
+                logger.LogError(ex, "Unhandled exception during inventory run for root path {RootPath}", rootPath);
                 Console.Error.WriteLine(ex.ToString());
                 return 3;
             }
