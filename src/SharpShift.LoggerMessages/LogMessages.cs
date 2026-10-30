@@ -37,5 +37,9 @@ namespace SharpShift.LoggerMessages
 
         [LoggerMessage(EventId = 2003, Level = LogLevel.Warning, Message = "No dependencies found for project '{ProjectPath}'.")]
         public static partial void NoDependenciesFound(ILogger logger, string projectPath);
+
+        //Report generation messages
+        [LoggerMessage(EventId = 4000, Level = LogLevel.Information, Message = "Generating report for '{InputDirectory}' with output '{OutputDirectory}'")]
+        public static partial void GeneratingReport(ILogger logger, string inputDirectory, string outputDirectory);
     }
 }

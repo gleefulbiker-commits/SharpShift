@@ -229,7 +229,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
             return "solution";
 
         var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = new string(value.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
+        var sanitized = new string([.. value.Select(c => invalidChars.Contains(c) ? '_' : c)]);
         return string.IsNullOrWhiteSpace(sanitized) ? "solution" : sanitized;
     }
 }

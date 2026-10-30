@@ -4,13 +4,13 @@ public sealed class ReportOptions
 {
     public string InputDirectory { get; set; } = string.Empty;
 
-    public string InventoryFileName { get; set; } = "inventory.json";
+    public string InventoryFileName { get; set; } = string.Empty;
 
-    public string AnalysisFileName { get; set; } = "analysis.json";
+    public string AnalysisFileName { get; set; } = string.Empty;
 
     public string OutputDirectory { get; set; } = string.Empty;
 
-    public string BaseFileName { get; set; } = "report";
+    public string BaseFileName { get; set; } = string.Empty;
 
     public bool GenerateCombined { get; set; } = true;
 

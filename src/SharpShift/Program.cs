@@ -48,13 +48,14 @@ namespace SharpShift
 
                 var defaultInventoryFilename = configuration["OutputFilename"] ?? "inventory.json";
                 var defaultAnalysisFilename = configuration["AnalysisOutputFilename"] ?? "analysis.json";
+                var defaultReportBaseFilename = configuration["ReportBaseFilename"] ?? "reports";
                 var command = args[0].ToLowerInvariant();
 
                 var result = command switch
                 {
                     "scan" => await RunScanOrAnalyze(args, defaultInventoryFilename, defaultAnalysisFilename, true, logger, provider, loggerFactory),
                     "analyze" => await RunScanOrAnalyze(args, defaultInventoryFilename, defaultAnalysisFilename, false, logger, provider, loggerFactory),
-                    "report" => await GenerateReport(args, defaultInventoryFilename, defaultAnalysisFilename, logger),
+                    "report" => await GenerateReport(args, defaultInventoryFilename, defaultAnalysisFilename, defaultReportBaseFilename, logger),
                     _ => throw new InvalidOperationException($"Invalid command. '{args[0]}' is not a valid subcommand.")
                 };
 
@@ -80,7 +81,7 @@ namespace SharpShift
             if (isScan)
                 return await ScanRepositories(path, output, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory);
 
-            return await AnalyzeEstate(path, output, analysisOutput, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory);
+            return await AnalyzeEstate(path, output, analysisOutput, retryAttempts, clean, logger);
         }
 
         public static (
@@ -117,13 +118,13 @@ namespace SharpShift
             return (path, output, analysisOutput, retryAttempts, clean, analyzeCloned);
         }
 
-        public static ReportOptions ParseReportArguments(string[] args, string defaultInventoryFilename, string defaultAnalysisFilename)
+        public static ReportOptions ParseReportArguments(string[] args, string defaultInventoryFilename, string defaultAnalysisFilename, string defaultReportBaseFilename)
         {
             var options = new ReportOptions
             {
                 InventoryFileName = defaultInventoryFilename,
                 AnalysisFileName = defaultAnalysisFilename,
-                BaseFileName = "report",
+                BaseFileName = defaultReportBaseFilename,
                 Format = ReportFormat.Markdown,
                 GenerateCombined = true,
                 GeneratePerSolution = true
@@ -202,10 +203,7 @@ namespace SharpShift
             string analysisOutput,
             int retryAttempts,
             bool clean,
-            bool analyzeCloned,
-            ILogger logger,
-            IServiceProvider provider,
-            ILoggerFactory loggerFactory)
+            ILogger logger)
         {
             var resolver = new DefaultJsonTypeInfoResolver();
             var options = new JsonSerializerOptions
@@ -235,10 +233,10 @@ namespace SharpShift
             return 0;
         }
 
-        public static async Task<int> GenerateReport(string[] args, string defaultInventoryFilename, string defaultAnalysisFilename, ILogger logger)
+        public static async Task<int> GenerateReport(string[] args, string defaultInventoryFilename, string defaultAnalysisFilename, string defaultReportBaseFilename, ILogger logger)
         {
             var path = args[1];
-            var reportOptions = ParseReportArguments(args, defaultInventoryFilename, defaultAnalysisFilename);
+            var reportOptions = ParseReportArguments(args, defaultInventoryFilename, defaultAnalysisFilename, defaultReportBaseFilename);
             reportOptions.InputDirectory = path;
 
             if (string.IsNullOrWhiteSpace(reportOptions.OutputDirectory))
@@ -253,7 +251,7 @@ namespace SharpShift
                     logger.LogWarning("{Warning}", warning);
 
                 foreach (var file in result.GeneratedFiles)
-                    logger.LogInformation("Generated report file: {ReportFile}", file);
+                    LogMessages.GeneratingReport(logger, reportOptions.InputDirectory, reportOptions.OutputDirectory);
 
                 return 0;
             }
