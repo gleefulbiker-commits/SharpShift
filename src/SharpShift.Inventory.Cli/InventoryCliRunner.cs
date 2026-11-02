@@ -109,12 +109,12 @@ namespace SharpShift.Inventory.Cli
                 var fullPath = Path.Combine(rootPath, outputFile);
 
                 File.WriteAllText(fullPath, json);
-                LogMessages.WritingInventory(logger, fullPath);
+                LogMessages.WritingInventory(logger ?? throw new ArgumentNullException(nameof(logger)), fullPath);
                 return 0;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Unhandled exception during inventory run for root path {RootPath}", rootPath);
+                (logger ?? throw new ArgumentNullException(nameof(logger))).LogError(ex, "Unhandled exception during inventory run for root path {RootPath}", rootPath);
                 Console.Error.WriteLine(ex.ToString());
                 return 3;
             }

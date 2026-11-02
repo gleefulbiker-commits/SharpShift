@@ -55,13 +55,13 @@ namespace SharpShift.Inventory.Discovery
 
             foreach (var account in accounts)
             {
-                LogMessages.DiscoveringRepositoriesForGitHubAccount(_logger, account);
+                LogMessages.DiscoveringRepositoriesForGitHubAccount(_logger ?? throw new ArgumentNullException(nameof(_logger)), account);
                 var list = await ListReposForAccount(account);
                 if (list != null)
                     results.AddRange(list);
             }
 
-            LogMessages.GitHubDiscoveryCompleted(_logger, results.Count);
+            LogMessages.GitHubDiscoveryCompleted(_logger ?? throw new ArgumentNullException(nameof(_logger)), results.Count);
 
             return results;
         }
