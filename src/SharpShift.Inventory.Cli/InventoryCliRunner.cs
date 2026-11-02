@@ -1,4 +1,5 @@
 using SharpShift.LoggerMessages;
+using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -16,7 +17,7 @@ namespace SharpShift.Inventory.Cli
     {
         private static readonly JsonSerializerOptions _jsonOptions = new() { TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
 
-        public static readonly JsonSerializerOptions options = new ()
+        public static readonly JsonSerializerOptions options = new()
         {
             WriteIndented = true,
             TypeInfoResolver = new DefaultJsonTypeInfoResolver()
@@ -26,10 +27,9 @@ namespace SharpShift.Inventory.Cli
             ILogger logger,
             string rootPath,
             string outputFile,
-            SharpShift.Inventory.Core.Interfaces.ISolutionDiscoverer? solutionDiscoverer = null,
+            ISolutionDiscoverer? solutionDiscoverer = null,
             int retryAttempts = 0,
-            bool clean = false,
-            bool analyzeCloned = false)
+            bool clean = false)
         {
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
@@ -52,12 +52,12 @@ namespace SharpShift.Inventory.Cli
                 {
                     var sols = await solutionDiscoverer.DiscoverSolutionsAsync(rootPath);
                     // collect local solution file paths for further processing
-                    slnFiles = [..sols.Where(s => s.Source == "FileSystem" && !string.IsNullOrWhiteSpace(s.LocalPath)).Select(s => s.LocalPath!)];
+                    slnFiles = [.. sols.Where(s => s.Source == "FileSystem" && !string.IsNullOrWhiteSpace(s.LocalPath)).Select(s => s.LocalPath!)];
 
                     // record remote GitHub repositories for later insertion into inventory summary
-                    remoteRepos = [..sols.Where(s => s.Source == "GitHub" && !string.IsNullOrWhiteSpace(s.RepoUrl)).Select(s => new { s.RepoUrl, s.IsArchived }).Cast<object>()];
+                    remoteRepos = [.. sols.Where(s => s.Source == "GitHub" && !string.IsNullOrWhiteSpace(s.RepoUrl)).Select(s => new { s.RepoUrl, s.IsArchived }).Cast<object>()];
 
-                    foreach(var sol in sols)
+                    foreach (var sol in sols)
                     {
                         if (sol.Source == "GitHub" && !string.IsNullOrWhiteSpace(sol.RepoUrl))
                         {

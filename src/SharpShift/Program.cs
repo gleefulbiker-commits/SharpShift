@@ -54,8 +54,8 @@ namespace SharpShift
 
                 var result = command switch
                 {
-                    "scan" => await RunScanOrAnalyze(args, defaultInventoryFilename, defaultAnalysisFilename, true, logger, provider, loggerFactory),
-                    "analyze" => await RunScanOrAnalyze(args, defaultInventoryFilename, defaultAnalysisFilename, false, logger, provider, loggerFactory),
+                    "scan" => await RunScan(args, defaultInventoryFilename, defaultAnalysisFilename, logger, provider, loggerFactory),
+                    "analyze" => await RunAnalysis(args, defaultInventoryFilename, defaultAnalysisFilename, logger),
                     "report" => await GenerateReport(args, defaultInventoryFilename, defaultAnalysisFilename, defaultReportBaseFilename, logger),
                     _ => throw new InvalidOperationException($"Invalid command. '{args[0]}' is not a valid subcommand.")
                 };
@@ -69,18 +69,26 @@ namespace SharpShift
             }
         }
 
-        private static async Task<int> RunScanOrAnalyze(
+        private static async Task<int> RunScan(
             string[] args,
             string defaultOutputFilename,
             string defaultAnalysisFilename,
-            bool isScan,
             ILogger logger,
             IServiceProvider provider,
             ILoggerFactory loggerFactory)
         {
+            var (path, output, _, retryAttempts, clean, analyzeCloned, _) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
+
+            return await ScanRepositories(path, output, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory);
+        }
+
+        private static async Task<int> RunAnalysis(
+            string[] args,
+            string defaultOutputFilename,
+            string defaultAnalysisFilename,
+            ILogger logger)
+        {
             var (path, output, analysisOutput, retryAttempts, clean, analyzeCloned, dependencyHealthOptions) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
-            if (isScan)
-                return await ScanRepositories(path, output, retryAttempts, clean, analyzeCloned, logger, provider, loggerFactory);
 
             return await AnalyzeEstate(path, output, analysisOutput, retryAttempts, clean, logger, dependencyHealthOptions);
         }
@@ -222,7 +230,7 @@ namespace SharpShift
             var sol = provider.GetRequiredService<ISolutionDiscoverer>();
             var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
 
-            return await InventoryCliRunner.RunAsync(runnerLogger, path, output, sol, retryAttempts, clean, analyzeCloned);
+            return await InventoryCliRunner.RunAsync(runnerLogger, path, output, sol, retryAttempts, clean);
         }
 
         public static async Task<int> AnalyzeEstate(

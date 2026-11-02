@@ -8,12 +8,17 @@ namespace SharpShift.LoggerMessages
         [LoggerMessage(EventId = 1000, Level = LogLevel.Information, Message = "Starting solution scan for '{Path}' with output '{OutputFile}'")]
         public static partial void StartingSolutionScan(ILogger logger, string path, string outputFile);
 
+
+
         // Solution discovery messages
         [LoggerMessage(EventId = 2000, Level = LogLevel.Information, Message = "Evaluating .slnx solution properties for {SolutionPath}")]
         public static partial void EvaluatingSolutionProperties(ILogger logger, string solutionPath);
 
         [LoggerMessage(EventId = 2001, Level = LogLevel.Information, Message = "Evaluating local solution file: {SolutionPath}")]
         public static partial void EvaluatingLocalSolutionFile(ILogger logger, string solutionPath);
+
+        [LoggerMessage(EventId = 2005, Level = LogLevel.Information, Message = "Discovered {SolutionCount} local solution files under {RootPath}")]
+        public static partial void DiscoveredLocalSolutionFiles(ILogger logger, int solutionCount, string rootPath);
 
         // Writing inventory messages
         [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "Writing inventory to '{OutputFile}'")]
@@ -34,6 +39,15 @@ namespace SharpShift.LoggerMessages
         //Remote repository messages
         [LoggerMessage(EventId = 5000, Level = LogLevel.Information, Message = "Discovered remote GitHub repository: {RepoUrl} (archived: {IsArchived})")]
         public static partial void DiscoveredRemoteGitHubRepository(ILogger logger, string repoUrl, bool isArchived);   
+
+        [LoggerMessage(EventId = 5001, Level = LogLevel.Information, Message = "Discovering repositories for GitHub account {Account}")]
+        public static partial void DiscoveringRepositoriesForGitHubAccount(ILogger logger, string account);
+
+        [LoggerMessage(EventId = 5002, Level = LogLevel.Information, Message = "GitHub discovery completed with {EntryCount} repository entries")]
+        public static partial void GitHubDiscoveryCompleted(ILogger logger, int entryCount);
+
+        [LoggerMessage(EventId = 5003, Level = LogLevel.Information, Message = "Starting solution discovery for root path {RootPath}")]
+        public static partial void StartingSolutionDiscovery(ILogger logger, string rootPath);
 
         //Project analysis messages
         [LoggerMessage(EventId = 2002, Level = LogLevel.Warning, Message = "Project path '{ProjectPath}' is invalid.")]

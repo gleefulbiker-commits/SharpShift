@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
+using SharpShift.LoggerMessages;
 
 namespace SharpShift.Inventory.Discovery
 {
@@ -38,6 +39,9 @@ namespace SharpShift.Inventory.Discovery
 
         public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null)
         {
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(rootPath, $"GitHub discovery skipped because root path is empty or missing: {rootPath}");
+            ArgumentNullException.ThrowIfNull(_logger, $"GitHub discovery skipped because logger is null.");
+
             var accountsEnv = Environment.GetEnvironmentVariable("GITHUB_ACCOUNTS");
             if (string.IsNullOrWhiteSpace(accountsEnv))
             {
@@ -51,13 +55,13 @@ namespace SharpShift.Inventory.Discovery
 
             foreach (var account in accounts)
             {
-                _logger?.LogDebug("Discovering repositories for GitHub account {Account}", account);
+                LogMessages.DiscoveringRepositoriesForGitHubAccount(_logger, account);
                 var list = await ListReposForAccount(account);
                 if (list != null)
                     results.AddRange(list);
             }
 
-            _logger?.LogInformation("GitHub discovery completed with {EntryCount} repository entries", results.Count);
+            LogMessages.GitHubDiscoveryCompleted(_logger, results.Count);
 
             return results;
         }

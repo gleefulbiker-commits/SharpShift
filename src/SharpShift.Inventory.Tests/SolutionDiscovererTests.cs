@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Discovery;
@@ -24,13 +25,11 @@ namespace SharpShift.Inventory.Tests
                 File.WriteAllText(s1, "\n");
                 File.WriteAllText(s2, "\n");
 
-                var disc = new FileSystemSolutionDiscoverer();
+                var disc = new FileSystemSolutionDiscoverer(NullLogger<FileSystemSolutionDiscoverer>.Instance);
                 var sols = (await disc.DiscoverSolutionsAsync(temp)).ToList();
 
                 // Ensure entries are structured (not plain strings) and have LocalPath populated
-                Assert.IsTrue(sols.All(s => s.LocalPath != null));
-                Assert.IsTrue(sols.All(s => s is SolutionDiscoveryEntry));
-
+                Assert.IsTrue(sols.All(s => s.LocalPath is not null));
                 Assert.IsTrue(sols.Any(s => s.LocalPath == s1));
                 Assert.IsTrue(sols.Any(s => s.LocalPath == s2));
             }

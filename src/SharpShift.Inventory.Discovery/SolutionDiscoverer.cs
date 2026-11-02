@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
+using SharpShift.LoggerMessages;
 
 namespace SharpShift.Inventory.Discovery
 {
@@ -34,7 +35,10 @@ namespace SharpShift.Inventory.Discovery
         /// <inheritdoc />
         public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath)
         {
-            _logger?.LogInformation("Starting solution discovery for root path {RootPath}", rootPath);
+            ArgumentNullException.ThrowIfNullOrWhiteSpace(rootPath, $"Solution discovery skipped because root path is empty or missing: {rootPath}");
+            ArgumentNullException.ThrowIfNull(_logger, $"Solution discovery skipped because logger is null.");
+
+            LogMessages.StartingSolutionDiscovery(_logger, rootPath);
             var results = new List<SolutionDiscoveryEntry>();
 
             var fs = await _fsDiscoverer.DiscoverSolutionsAsync(rootPath);
@@ -45,7 +49,7 @@ namespace SharpShift.Inventory.Discovery
             if (gh != null)
                 results.AddRange(gh);
 
-            _logger?.LogInformation("Completed solution discovery with {EntryCount} entries", results.Count);
+            LogMessages.GitHubDiscoveryCompleted(_logger, results.Count);
 
             return results;
         }
