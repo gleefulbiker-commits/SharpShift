@@ -34,28 +34,34 @@ namespace SharpShift.Inventory.DependencyAnalysis
                         ArgumentNullException.ThrowIfNull(dep, nameof(dep));
                         ArgumentNullException.ThrowIfNull(dep.Name, nameof(dep.Name));
 
-                        if (!result.Dependencies.TryGetValue(dep.Name, out var existingDep))
+                        LogMessages.AnalyzingDependency(logger, dep.Name, dep?.Version ?? string.Empty);
+                        if (!result.Dependencies.TryGetValue(dep?.Name ?? string.Empty, out var existingDep))
                         {
-                            result.Dependencies.Add(dep.Name, new DependencySummary
+                            result.Dependencies.Add(dep?.Name ?? string.Empty, new DependencySummary
                             {
-                                Name = dep.Name,
-                                DependencyType = dep.DependencyType,
-                                HintPath = dep.HintPath,
-                                OtherMetadata = dep.OtherMetadata,
-                                Source = string.IsNullOrWhiteSpace(dep.Source) ? dep.DependencyType : dep.Source,
+                                Name = dep?.Name ?? string.Empty,
+                                DependencyType = dep?.DependencyType ?? string.Empty,
+                                HintPath = dep?.HintPath,
+                                OtherMetadata = dep?.OtherMetadata,
+                                Source = string.IsNullOrWhiteSpace(dep?.Source) ? dep?.DependencyType ?? string.Empty : dep?.Source ?? string.Empty,
                                 TotalInstances = 1
                             });
 
-                            var dependencyName = dep.Name;
+                            var dependencyName = dep?.Name ?? string.Empty;
                             result.Dependencies[dependencyName].Version ??= [];
-                            var versionKey = dep.Version ?? string.Empty;
-                            if (result.Dependencies[dependencyName].Version.TryGetValue(versionKey, out var count))
+                            var versionKey = dep?.Version ?? string.Empty;
+                            var version = result.Dependencies[dependencyName].Version ?? [];
+                            if (version.TryGetValue(versionKey, out var count))
                             {
-                                result.Dependencies[dependencyName].Version[versionKey] = count + 1;
+                                version[versionKey]++;
                             }
                             else
                             {
-                                result.Dependencies[dependencyName].Version.TryAdd(versionKey, 1);
+                                if(!version.TryAdd(versionKey, 1))
+                                {
+                                    LogMessages.FailedToAddVersion(logger, versionKey, dependencyName);
+                                    throw new InvalidOperationException($"Failed to add version '{versionKey}' for dependency '{dependencyName}'.");
+                                }
                             }
                         }
                         else
@@ -63,7 +69,7 @@ namespace SharpShift.Inventory.DependencyAnalysis
                             existingDep.TotalInstances++;
                             existingDep.Version ??= [];
 
-                            var versionKey = dep.Version ?? string.Empty;
+                            var versionKey = dep?.Version ?? string.Empty;
                             if (existingDep.Version.TryGetValue(versionKey, out var count))
                             {
                                 existingDep.Version[versionKey] = count + 1;

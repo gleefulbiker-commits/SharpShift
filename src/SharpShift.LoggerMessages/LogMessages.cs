@@ -49,6 +49,13 @@ namespace SharpShift.LoggerMessages
         [LoggerMessage(EventId = 3002, Level = LogLevel.Information, Message = "Analyzing DEPRECATED dependency '{DependencyName}' with version '{Version}'")]
         public static partial void AnalyzingDependency(ILogger logger, string dependencyName, string version);
 
+        //Risk analysis messages
+        [LoggerMessage(EventId = 4001, Level = LogLevel.Information, Message = "Analyzing risk for dependency '{DependencyName}' with version '{Version}'")]
+        public static partial void AnalyzingRisk(ILogger logger, string dependencyName, string version);
+
+        [LoggerMessage(EventId = 4002, Level = LogLevel.Critical, Message = "Failed to add version '{VersionKey}' for dependency '{DependencyName}'")]
+        public static partial void FailedToAddVersion(ILogger logger, string versionKey, string dependencyName);
+
         //Report generation messages
         [LoggerMessage(EventId = 4000, Level = LogLevel.Information, Message = "Generating report for '{InputDirectory}' with output '{OutputDirectory}'")]
         public static partial void GeneratingReport(ILogger logger, string inputDirectory, string outputDirectory);

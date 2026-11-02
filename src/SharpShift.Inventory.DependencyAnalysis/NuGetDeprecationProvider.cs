@@ -19,6 +19,7 @@ namespace SharpShift.Inventory.DependencyAnalysis;
 
 public sealed class NuGetDeprecationProvider : IDependencyDeprecationProvider
 {
+    private static readonly string NuGetServiceIndexUrl = "https://api.nuget.org/v3/index.json";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -43,16 +44,19 @@ public sealed class NuGetDeprecationProvider : IDependencyDeprecationProvider
         return _queryCache.GetOrAdd(query, q => GetDeprecationsCoreAsync(logger, q, cancellationToken).GetAwaiter().GetResult()).AsTaskResult();
     }
 
-    private async Task<IReadOnlyList<PackageDeprecationRecord>> GetDeprecationsCoreAsync(Microsoft.Extensions.Logging.ILogger logger, PackageHealthQuery query, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<PackageDeprecationRecord>> GetDeprecationsCoreAsync(
+        Microsoft.Extensions.Logging.ILogger logger,
+        PackageHealthQuery query,
+        CancellationToken cancellationToken)
     {
         var nullLogger = NuGet.Common.NullLogger.Instance;
         var packageDeprecationRecords = new List<PackageDeprecationRecord>();
 
-        var repository = Repository.Factory.GetCoreV3(
-            "https://api.nuget.org/v3/index.json");
+        var repository = Repository.Factory.GetCoreV3(NuGetServiceIndexUrl);
 
         var metadataResource =
-            await repository.GetResourceAsync<PackageMetadataResource>();
+            await repository.GetResourceAsync<PackageMetadataResource>() 
+                ?? throw new InvalidOperationException("Failed to get PackageMetadataResource.");
 
         var metadata = await metadataResource.GetMetadataAsync(
             query.PackageId,
