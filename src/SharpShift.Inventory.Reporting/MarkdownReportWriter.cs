@@ -57,7 +57,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         {
             foreach (var finding in analysis.RiskFindings)
             {
-                if (severityCounts.ContainsKey(finding.Severity))
+                if (severityCounts.TryGetValue(finding.Severity, out var severity))
                     severityCounts[finding.Severity]++;
 
                 if (string.Equals(finding.Category, "Dependency.Deprecated", StringComparison.OrdinalIgnoreCase))
@@ -234,8 +234,8 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add($"- Legacy Project Files: {dashboard.LegacyProjectFiles} projects");
         lines.Add(string.Empty);
         // Replace the following lines with the generated recommended priority list
-        lines.Add("Recommended Priority:");
-        lines = BuildRecommendedPriorities(lines, data.Analysis, projects);
+        lines.Add("Recommended Priorities:");
+        lines = BuildRecommendedPriorities(lines, data.Analysis ?? new(), projects);
         lines.Add(string.Empty);
 
         lines.Add("### Framework Distribution");
@@ -405,8 +405,8 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add($"- Legacy Project Files: {dashboard.LegacyProjectFiles} projects");
         lines.Add(string.Empty);
         // Replace the following lines with the generated recommended priority list
-        lines.Add("Recommended Priority:");
-        lines = BuildRecommendedPriorities(lines, analysis, solution.Projects);
+        lines.Add("Recommended Priorities:");
+        lines = BuildRecommendedPriorities(lines, analysis ?? new(), solution.Projects);
         lines.Add(string.Empty);
 
         lines.Add("## Risk Findings");
@@ -466,48 +466,48 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
     private static List<string> BuildRecommendedPriorities(List<string> lines, ProjectAnalysisResult analysis, List<ProjectInventory> projects)
     {
+        int recommendationCount = 1;
+
         if (analysis?.RiskFindings.Count > 0)
         {
             var vulnerablePackages = analysis.RiskFindings
-                .Where(r => string.Equals(r.Category, "Dependency.Vulnerability", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f.Severity)
-                .Select(r => r.Description)
-                .Distinct()
-                .ToList();
-            if (vulnerablePackages.Count > 0)
+                .Where(r => string.Equals(r.Category, "Dependency.Vulnerability", StringComparison.OrdinalIgnoreCase)
+                            && r.Severity.Equals(RiskSeverity.Critical))
+                .Count();
+
+            if (vulnerablePackages > 0)
             {
-                lines.Add("Address vulnerable packages:");
-                foreach (var pkg in vulnerablePackages)
-                {
-                    lines.Add($"- {pkg}");
-                }
+                lines.Add($"{recommendationCount}. Address packages with CRITICAL vulnerabilities: {vulnerablePackages}");
+                recommendationCount++;
             }
+
+            vulnerablePackages = analysis.RiskFindings
+                .Where(r => string.Equals(r.Category, "Dependency.Vulnerability", StringComparison.OrdinalIgnoreCase)
+                            && r.Severity.Equals(RiskSeverity.High))
+                .Count();
+
+            if (vulnerablePackages > 0)
+            {
+                lines.Add($"{recommendationCount}. Address packages with HIGH vulnerabilities: {vulnerablePackages}");
+                recommendationCount++;
+            }
+
             var deprecatedPackages = analysis.RiskFindings
                 .Where(r => string.Equals(r.Category, "Dependency.Deprecated", StringComparison.OrdinalIgnoreCase))
-                .Select(r => r.Description)
-                .Distinct()
-                .ToList();
-            if (deprecatedPackages.Count > 0)
+                .Count();
+
+            if (deprecatedPackages > 0)
             {
-                lines.Add("Upgrade or remove deprecated packages:");
-                foreach (var pkg in deprecatedPackages)
-                {
-                    lines.Add($"- {pkg}");
-                }
+                lines.Add($"{recommendationCount}. Upgrade or remove deprecated packages: {deprecatedPackages}");
+                recommendationCount++;
             }
         }
         var outOfSupportProjects = projects
             .Where(p => ClassifyFrameworkSupportStatus(p.Framework) == FrameworkSupportStatus.OutOfSupport)
-            .Select(p => p.ProjectName)
-            .Distinct()
-            .ToList();
-        if (outOfSupportProjects.Count > 0)
+            .Count();
+        if (outOfSupportProjects > 0)
         {
-            lines.Add("Upgrade out-of-support framework projects:");
-            foreach (var proj in outOfSupportProjects)
-            {
-                lines.Add($"- {proj}");
-            }
+            lines.Add($"{recommendationCount}. Upgrade out-of-support framework projects: {outOfSupportProjects}");
         }
         return lines;
     }
