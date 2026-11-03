@@ -3,6 +3,7 @@ using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
@@ -44,41 +45,33 @@ namespace SharpShift.Inventory.Cli
                     return 2;
                 }
 
-                var slnFiles = new List<string>();
-                var csprojFiles = new List<string>();
-
-                var remoteRepos = new List<object>();
-                if (solutionDiscoverer is not null)
-                {
-                    var sols = await solutionDiscoverer.DiscoverSolutionsAsync(rootPath);
-                    // collect local solution file paths for further processing
-                    slnFiles = [.. sols.Where(s => s.Source == "FileSystem" && !string.IsNullOrWhiteSpace(s.LocalPath)).Select(s => s.LocalPath!)];
-
-                    // record remote GitHub repositories for later insertion into inventory summary
-                    remoteRepos = [.. sols.Where(s => s.Source == "GitHub" && !string.IsNullOrWhiteSpace(s.RepoUrl)).Select(s => new { s.RepoUrl, s.IsArchived }).Cast<object>()];
-
-                    foreach (var sol in sols)
-                    {
-                        if (sol.Source == "GitHub" && !string.IsNullOrWhiteSpace(sol.RepoUrl))
-                        {
-                            LogMessages.DiscoveredRemoteGitHubRepository(logger, sol.RepoUrl, sol.IsArchived);
-                        }
-                        else if (sol.Source == "FileSystem" && !string.IsNullOrWhiteSpace(sol.LocalPath))
-                        {
-                            LogMessages.EvaluatingLocalSolutionFile(logger, sol.LocalPath);
-                            var solutionInventory = SolutionEvaluator.EvaluateSolutionProperties(sol.LocalPath, forceRefresh: true, logger);
-                            if (solutionInventory is not null)
-                            {
-                                solutionInventory.Summary["projectCount"] = solutionInventory.Projects.Count;
-                                allSolutions.Add(solutionInventory);
-                            }
-                        }
-                    }
-                }
-                else
+                if (solutionDiscoverer is null)
                 {
                     throw new ArgumentNullException(nameof(solutionDiscoverer), "Solution discoverer is required.");
                 }
+
+                var discoveryEntries = (await solutionDiscoverer.DiscoverSolutionsAsync(rootPath)).ToList();
+                var fileSystemEntries = GetFileSystemEntries(discoveryEntries).ToList();
+                var remoteEntries = GetRemoteRepoEntries(discoveryEntries).ToList();
+
+                // TODO: Correlate file-system solutions with discovered GitHub repositories here.
+                // Possible approach:
+                // 1) Build a lookup of GitHub repos from `remoteEntries` (Owner/RepoName/RepoUrl/LocalPath).
+                // 2) Normalize each local solution path (full path, case-insensitive).
+                // 3) Determine whether a local solution sits under a cloned repo root.
+                // 4) Attach match metadata to avoid duplicate processing and/or enrich output.
+
+                var evaluatedSolutionPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                EvaluateAndAppendSolutions(
+                    logger,
+                    fileSystemEntries.Select(entry => entry.LocalPath!),
+                    allSolutions,
+                    evaluatedSolutionPaths);
+
+                var cloneRoots = ResolveCloneRootsSequential(remoteEntries, logger);
+                var clonedSolutionFiles = DiscoverSolutionFilesUnderRoots(cloneRoots, logger);
+                EvaluateAndAppendSolutions(logger, clonedSolutionFiles, allSolutions, evaluatedSolutionPaths);
 
                 if (clean)
                 {
@@ -97,14 +90,6 @@ namespace SharpShift.Inventory.Cli
                     logger?.LogInformation("Performed clean restart: removed output and cleared evaluator cache.");
                 }
 
-                if (remoteRepos.Count > 0)
-                {
-                    foreach (var solutionInventory in allSolutions)
-                    {
-                        solutionInventory.Summary["remoteRepositories"] = remoteRepos;
-                    }
-                }
-
                 var json = JsonSerializer.Serialize(allSolutions, options);
                 var fullPath = Path.Combine(rootPath, outputFile);
 
@@ -118,6 +103,153 @@ namespace SharpShift.Inventory.Cli
                 Console.Error.WriteLine(ex.ToString());
                 return 3;
             }
+        }
+
+        private static IEnumerable<SolutionDiscoveryEntry> GetFileSystemEntries(IEnumerable<SolutionDiscoveryEntry> entries)
+        {
+            return entries.Where(entry =>
+                string.Equals(entry.Source, "FileSystem", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(entry.LocalPath));
+        }
+
+        private static IEnumerable<SolutionDiscoveryEntry> GetRemoteRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
+        {
+            return entries.Where(entry =>
+                string.Equals(entry.Source, "GitHub", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(entry.RepoUrl));
+        }
+
+        private static void EvaluateAndAppendSolutions(
+            ILogger logger,
+            IEnumerable<string> solutionPaths,
+            List<SolutionInventory> allSolutions,
+            HashSet<string> evaluatedSolutionPaths)
+        {
+            foreach (var solutionPath in solutionPaths)
+            {
+                if (string.IsNullOrWhiteSpace(solutionPath))
+                    continue;
+
+                var normalizedPath = Path.GetFullPath(solutionPath);
+                if (!evaluatedSolutionPaths.Add(normalizedPath))
+                {
+                    LogMessages.SkippingDuplicateSolutionEvaluation(logger, normalizedPath);
+                    continue;
+                }
+
+                LogMessages.EvaluatingLocalSolutionFile(logger, normalizedPath);
+                var solutionInventory = SolutionEvaluator.EvaluateSolutionProperties(normalizedPath, forceRefresh: true, logger);
+                if (solutionInventory is not null)
+                {
+                    solutionInventory.Summary["projectCount"] = solutionInventory.Projects.Count;
+                    allSolutions.Add(solutionInventory);
+                }
+            }
+        }
+
+        private static List<string> ResolveCloneRootsSequential(IEnumerable<SolutionDiscoveryEntry> remoteEntries, ILogger logger)
+        {
+            var cloneRoots = new List<string>();
+            var cloneBasePath = Environment.GetEnvironmentVariable(UpgradeConfig.GithubClonePathEnv);
+            var gitAvailable = false;
+
+            foreach (var remoteEntry in remoteEntries)
+            {
+                LogMessages.DiscoveredRemoteGitHubRepository(logger, remoteEntry.RepoUrl!, remoteEntry.IsArchived);
+
+                if (!string.IsNullOrWhiteSpace(remoteEntry.LocalPath) && Directory.Exists(remoteEntry.LocalPath))
+                {
+                    cloneRoots.Add(Path.GetFullPath(remoteEntry.LocalPath));
+                    continue;
+                }
+
+                if (remoteEntry.IsArchived)
+                {
+                    LogMessages.SkippingArchivedRepositoryClone(logger, remoteEntry.RepoUrl!);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(cloneBasePath))
+                    continue;
+
+                var repoName = ResolveRepoFolderName(remoteEntry);
+                if (string.IsNullOrWhiteSpace(repoName))
+                    continue;
+
+                var owner = string.IsNullOrWhiteSpace(remoteEntry.Owner) ? "unknown" : remoteEntry.Owner;
+                var targetDir = Path.Combine(cloneBasePath, owner, repoName);
+
+                if (Directory.Exists(targetDir))
+                {
+                    LogMessages.SkippingCloneTargetExists(logger, remoteEntry.RepoUrl!, targetDir);
+                    remoteEntry.LocalPath = Path.GetFullPath(targetDir);
+                    cloneRoots.Add(remoteEntry.LocalPath);
+                    continue;
+                }
+
+                if (!gitAvailable)
+                {
+                    gitAvailable = GitHelper.IsGitAvailable(logger);
+                }
+
+                if (!gitAvailable)
+                    continue;
+
+                LogMessages.StartingRepositoryClone(logger, remoteEntry.RepoUrl!, targetDir);
+                _ = GitHelper.TryClone(
+                    remoteEntry.RepoUrl!,
+                    targetDir,
+                    UpgradeConfig.DefaultCloneDepth,
+                    UpgradeConfig.DefaultCloneTimeoutMs,
+                    logger);
+
+                if (Directory.Exists(targetDir))
+                {
+                    remoteEntry.LocalPath = Path.GetFullPath(targetDir);
+                    cloneRoots.Add(remoteEntry.LocalPath);
+                    LogMessages.RepositoryCloneResolved(logger, remoteEntry.RepoUrl!, remoteEntry.LocalPath);
+                }
+            }
+
+            return cloneRoots;
+        }
+
+        private static IEnumerable<string> DiscoverSolutionFilesUnderRoots(IEnumerable<string> cloneRoots, ILogger logger)
+        {
+            foreach (var cloneRoot in cloneRoots.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(cloneRoot) || !Directory.Exists(cloneRoot))
+                    continue;
+
+                var slnFiles = Directory.EnumerateFiles(cloneRoot, "*.sln", SearchOption.AllDirectories);
+                var slnxFiles = Directory.EnumerateFiles(cloneRoot, "*.slnx", SearchOption.AllDirectories);
+                var discovered = slnFiles.Concat(slnxFiles).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+                LogMessages.DiscoveredClonedRepositorySolutions(logger, cloneRoot, discovered.Count);
+
+                foreach (var solution in discovered)
+                    yield return solution;
+            }
+        }
+
+        private static string ResolveRepoFolderName(SolutionDiscoveryEntry remoteEntry)
+        {
+            if (!string.IsNullOrWhiteSpace(remoteEntry.RepoName))
+                return remoteEntry.RepoName;
+
+            if (!Uri.TryCreate(remoteEntry.RepoUrl, UriKind.Absolute, out var uri))
+                return string.Empty;
+
+            var lastSegment = uri.AbsolutePath
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .LastOrDefault();
+
+            if (string.IsNullOrWhiteSpace(lastSegment))
+                return string.Empty;
+
+            return lastSegment.EndsWith(".git", StringComparison.OrdinalIgnoreCase)
+                ? lastSegment[..^4]
+                : lastSegment;
         }
 
         private static string NormalizeLegacyFramework(string legacy)

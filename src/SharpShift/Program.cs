@@ -50,6 +50,7 @@ namespace SharpShift
                 var defaultInventoryFilename = configuration["OutputFilename"] ?? "inventory.json";
                 var defaultAnalysisFilename = configuration["AnalysisOutputFilename"] ?? "analysis.json";
                 var defaultReportBaseFilename = configuration["ReportBaseFilename"] ?? "reports";
+                Environment.SetEnvironmentVariable("GITHUB_ACCOUNTS", configuration["GitHubAccounts"] ?? "alemnor");
                 var command = args[0].ToLowerInvariant();
 
                 var result = command switch

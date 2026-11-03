@@ -18,6 +18,11 @@ namespace SharpShift.Inventory.Core.Models
         public string SolutionPath { get; set; } = string.Empty;
 
         /// <summary>
+        /// Gets or sets a value indicating whether the repository is archived.
+        /// </summary>
+        public bool IsArchived { get; set; } = false;
+
+        /// <summary>
         /// Projects discovered in the solution or folder.
         /// </summary>
         public List<ProjectInventory> Projects { get; set; } = [];

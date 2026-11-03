@@ -49,6 +49,24 @@ namespace SharpShift.LoggerMessages
         [LoggerMessage(EventId = 5003, Level = LogLevel.Information, Message = "Starting solution discovery for root path {RootPath}")]
         public static partial void StartingSolutionDiscovery(ILogger logger, string rootPath);
 
+        [LoggerMessage(EventId = 5004, Level = LogLevel.Information, Message = "Starting clone for repository {RepoUrl} into {TargetDirectory}")]
+        public static partial void StartingRepositoryClone(ILogger logger, string repoUrl, string targetDirectory);
+
+        [LoggerMessage(EventId = 5005, Level = LogLevel.Information, Message = "Skipping clone for {RepoUrl} because target directory already exists: {TargetDirectory}")]
+        public static partial void SkippingCloneTargetExists(ILogger logger, string repoUrl, string targetDirectory);
+
+        [LoggerMessage(EventId = 5006, Level = LogLevel.Information, Message = "Skipping clone for archived repository {RepoUrl}")]
+        public static partial void SkippingArchivedRepositoryClone(ILogger logger, string repoUrl);
+
+        [LoggerMessage(EventId = 5007, Level = LogLevel.Information, Message = "Clone resolved for {RepoUrl}. Local path: {LocalPath}")]
+        public static partial void RepositoryCloneResolved(ILogger logger, string repoUrl, string localPath);
+
+        [LoggerMessage(EventId = 5008, Level = LogLevel.Information, Message = "Discovered {SolutionCount} solution files under cloned repository root {CloneRoot}")]
+        public static partial void DiscoveredClonedRepositorySolutions(ILogger logger, string cloneRoot, int solutionCount);
+
+        [LoggerMessage(EventId = 5009, Level = LogLevel.Debug, Message = "Skipping duplicate solution evaluation for {SolutionPath}")]
+        public static partial void SkippingDuplicateSolutionEvaluation(ILogger logger, string solutionPath);
+
         //Project analysis messages
         [LoggerMessage(EventId = 2002, Level = LogLevel.Warning, Message = "Project path '{ProjectPath}' is invalid.")]
         public static partial void ProjectPathIsInvalid(ILogger logger, string projectPath);

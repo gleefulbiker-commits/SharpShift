@@ -6,6 +6,7 @@ using NUnit.Framework;
 using SharpShift.Inventory.Discovery;
 using SharpShift.Inventory.Core.Models;
 using System.Net;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SharpShift.Inventory.Tests
 {
@@ -38,9 +39,10 @@ namespace SharpShift.Inventory.Tests
             try
             {
                 Environment.SetEnvironmentVariable("GITHUB_ACCOUNTS", "testowner");
+                var temp = System.IO.Path.GetTempPath();
 
-                var disc = new GitHubSolutionDiscoverer(client);
-                var results = await disc.DiscoverSolutionsAsync(null);
+                var disc = new GitHubSolutionDiscoverer(client, NullLogger<GitHubSolutionDiscoverer>.Instance);
+                var results = await disc.DiscoverSolutionsAsync(temp);
                 Assert.IsNotNull(results);
                 var list = new List<SolutionDiscoveryEntry>(results);
                 Assert.IsTrue(list.Exists(r => r.RepoName == "testrepo" && r.IsArchived == false));

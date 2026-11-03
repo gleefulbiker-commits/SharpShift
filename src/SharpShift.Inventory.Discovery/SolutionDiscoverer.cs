@@ -42,11 +42,11 @@ namespace SharpShift.Inventory.Discovery
             var results = new List<SolutionDiscoveryEntry>();
 
             var fs = await _fsDiscoverer.DiscoverSolutionsAsync(rootPath);
-            if (fs != null)
+            if (fs is not null)
                 results.AddRange(fs);
 
             var gh = await _ghDiscoverer.DiscoverSolutionsAsync(rootPath);
-            if (gh != null)
+            if (gh is not null)
                 results.AddRange(gh);
 
             LogMessages.GitHubDiscoveryCompleted(_logger, results.Count);
