@@ -39,6 +39,39 @@ namespace SharpShift.Inventory.Core.Utilities
             }
         }
 
+        public static async Task<(int ExitCode, string RepoUrl, string StdErr)> TryGetRepoUrlAsync(
+        string workingDirectory,
+        int timeoutMs = 10000,
+        CancellationToken cancellationToken = default)
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "git",                  // e.g. "git"
+                Arguments = $"-C \"{workingDirectory}\" config --get remote.origin.url",
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+
+            var stdOutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stdErrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(timeoutMs);
+
+            await process.WaitForExitAsync(timeoutCts.Token);
+
+            var stdOut = await stdOutTask;
+            var stdErr = await stdErrTask;
+
+            return (process.ExitCode, stdOut.Trim(), stdErr.Trim());
+        }
+
         public static bool TryClone(string repoUrl, string targetDir, int depth = UpgradeConfig.DefaultCloneDepth, int timeoutMs = UpgradeConfig.DefaultCloneTimeoutMs, ILogger? logger = null)
         {
             try

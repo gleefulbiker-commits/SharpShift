@@ -53,14 +53,6 @@ namespace SharpShift.Inventory.Cli
                 var discoveryEntries = (await solutionDiscoverer.DiscoverSolutionsAsync(rootPath)).ToList();
                 var fileSystemEntries = GetFileSystemEntries(discoveryEntries).ToList();
                 var remoteEntries = GetRemoteRepoEntries(discoveryEntries).ToList();
-
-                // TODO: Correlate file-system solutions with discovered GitHub repositories here.
-                // Possible approach:
-                // 1) Build a lookup of GitHub repos from `remoteEntries` (Owner/RepoName/RepoUrl/LocalPath).
-                // 2) Normalize each local solution path (full path, case-insensitive).
-                // 3) Determine whether a local solution sits under a cloned repo root.
-                // 4) Attach match metadata to avoid duplicate processing and/or enrich output.
-
                 var evaluatedSolutionPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 EvaluateAndAppendSolutions(

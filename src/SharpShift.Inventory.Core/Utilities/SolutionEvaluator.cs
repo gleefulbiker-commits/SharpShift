@@ -68,6 +68,9 @@ namespace SharpShift.Inventory.Core.Utilities
             var visualStudioVersion = VisualStudioVersionRegex().Match(slnFileText).Groups["version"].Value;
             solutionInventory.Summary["VisualStudioVersion"] = visualStudioVersion;
             var projectMatches = LegacyProjectRegex().Matches(slnFileText);
+            var repoUrlResult = GitHelper.TryGetRepoUrlAsync(Path.GetDirectoryName(solutionInventory.SolutionPath) ?? string.Empty, cancellationToken: default).GetAwaiter().GetResult();
+
+            solutionInventory.RepositoryUrl = repoUrlResult.RepoUrl ?? string.Empty;
 
             if (projectMatches.Count == 0)
             {
@@ -126,6 +129,7 @@ namespace SharpShift.Inventory.Core.Utilities
             {
                 SolutionName = Path.GetFileNameWithoutExtension(solutionPath),
                 SolutionPath = solutionPath,
+                RepositoryUrl = string.Empty,
                 Projects = [],
                 Summary = []
             };  

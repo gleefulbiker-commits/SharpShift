@@ -1,5 +1,6 @@
 using SharpShift.Inventory.Core.Models;
 using System.Xml.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SharpShift.Inventory.Reporting;
 
@@ -223,6 +224,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add("## Executive Risk Assessment");
         lines.Add(string.Empty);
         lines.Add($"Overall Risk: {dashboard.OverallRisk}");
+        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore}");
         lines.Add(string.Empty);
         lines.Add($"- Critical Vulnerabilities: {dashboard.Vulnerabilities.Critical}");
         lines.Add($"- High Vulnerabilities: {dashboard.Vulnerabilities.High}");
@@ -232,10 +234,11 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add($"- Deprecated Packages: {dashboard.DeprecatedPackageFindings}");
         lines.Add($"- Out-of-Support Frameworks: {dashboard.OutOfSupportFrameworkProjects} projects");
         lines.Add($"- Legacy Project Files: {dashboard.LegacyProjectFiles} projects");
+        lines.Add($"- Solutions Not In Version Control: {data.Solutions.Count(s => string.IsNullOrWhiteSpace(s.RepositoryUrl))}");
         lines.Add(string.Empty);
         // Replace the following lines with the generated recommended priority list
         lines.Add("Recommended Priorities:");
-        lines = BuildRecommendedPriorities(lines, data.Analysis ?? new(), projects);
+        lines = BuildRecommendedPriorities(lines, data.Analysis ?? new(), data.Solutions, projects);
         lines.Add(string.Empty);
 
         lines.Add("### Framework Distribution");
@@ -403,10 +406,11 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add($"- Deprecated Packages: {dashboard.DeprecatedPackageFindings}");
         lines.Add($"- Out-of-Support Frameworks: {dashboard.OutOfSupportFrameworkProjects} projects");
         lines.Add($"- Legacy Project Files: {dashboard.LegacyProjectFiles} projects");
+        lines.Add($"- Solution In Version Control: {(string.IsNullOrWhiteSpace(solution.RepositoryUrl)? "No" : "Yes")}");
         lines.Add(string.Empty);
         // Replace the following lines with the generated recommended priority list
         lines.Add("Recommended Priorities:");
-        lines = BuildRecommendedPriorities(lines, analysis ?? new(), solution.Projects);
+        lines = BuildRecommendedPriorities(lines, analysis ?? new(), new[] { solution }, solution.Projects);
         lines.Add(string.Empty);
 
         lines.Add("## Risk Findings");
@@ -464,7 +468,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         return string.IsNullOrWhiteSpace(sanitized) ? "solution" : sanitized;
     }
 
-    private static List<string> BuildRecommendedPriorities(List<string> lines, ProjectAnalysisResult analysis, List<ProjectInventory> projects)
+    private static List<string> BuildRecommendedPriorities(List<string> lines, ProjectAnalysisResult analysis, IEnumerable<SolutionInventory> solutions, List<ProjectInventory> projects)
     {
         int recommendationCount = 1;
 
@@ -502,12 +506,21 @@ internal sealed class MarkdownReportWriter : IReportWriter
                 recommendationCount++;
             }
         }
+
         var outOfSupportProjects = projects
             .Where(p => ClassifyFrameworkSupportStatus(p.Framework) == FrameworkSupportStatus.OutOfSupport)
             .Count();
         if (outOfSupportProjects > 0)
         {
             lines.Add($"{recommendationCount}. Upgrade out-of-support framework projects: {outOfSupportProjects}");
+        }
+
+        var solutionsWithoutVersionControl = solutions
+            .Where(p => string.IsNullOrWhiteSpace(p.RepositoryUrl))
+            .Count();
+        if (solutionsWithoutVersionControl > 0)
+        {
+            lines.Add($"{recommendationCount}. Add solutions to version control: {solutionsWithoutVersionControl}");
         }
         return lines;
     }

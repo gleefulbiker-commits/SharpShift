@@ -18,6 +18,11 @@ namespace SharpShift.Inventory.Core.Models
         public string SolutionPath { get; set; } = string.Empty;
 
         /// <summary>
+        /// Gets or sets the URL of the repository associated with this item.
+        /// </summary>
+        public string RepositoryUrl { get; set; } = string.Empty;
+
+        /// <summary>
         /// Gets or sets a value indicating whether the repository is archived.
         /// </summary>
         public bool IsArchived { get; set; } = false;
