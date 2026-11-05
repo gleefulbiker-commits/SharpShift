@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using SharpShift.Inventory.Core.Utilities;
 
@@ -8,39 +9,92 @@ namespace SharpShift.Inventory.Tests
 {
     public class SolutionEvaluatorTests
     {
+        [SetUp]
+        public void SetUp()
+        {
+            SolutionEvaluator.ClearCache();
+            ProjectEvaluator.ClearCache();
+        }
+
         [Test]
-        public void ParseSolutionProjectPaths_FindsProjectPaths()
+        public void EvaluateSolutionProperties_ReturnsEmptyInventory_WhenPathMissing()
+        {
+            var missingPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.sln");
+
+            var result = SolutionEvaluator.EvaluateSolutionProperties(missingPath, forceRefresh: true, NullLogger.Instance);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.SolutionPath, Is.EqualTo(missingPath));
+            Assert.That(result.Projects, Is.Empty);
+        }
+
+        [Test]
+        public void EvaluateSolutionProperties_ParsesSlnProjects()
         {
             var temp = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             Directory.CreateDirectory(temp);
             try
             {
-                var projA = Path.Combine(temp, "A.csproj");
-                var projB = Path.Combine(temp, "sub", "B.csproj");
-                Directory.CreateDirectory(Path.GetDirectoryName(projB) ?? temp);
-                File.WriteAllText(projA, "<Project Sdk=\"Microsoft.NET.Sdk\"/>\n");
-                File.WriteAllText(projB, "<Project Sdk=\"Microsoft.NET.Sdk\"/>\n");
+                var projA = Path.Combine(temp, "ProjA.csproj");
+                var projBDir = Path.Combine(temp, "sub");
+                var projB = Path.Combine(projBDir, "ProjB.csproj");
+                Directory.CreateDirectory(projBDir);
 
-                var sln = Path.Combine(temp, "Test.sln");
-                // include both projects using relative paths
-                var content = string.Join(Environment.NewLine, new[] {
+                File.WriteAllText(projA, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+                File.WriteAllText(projB, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>");
+
+                var slnPath = Path.Combine(temp, "Sample.sln");
+                var slnContent = string.Join(Environment.NewLine, new[]
+                {
                     "Microsoft Visual Studio Solution File, Format Version 12.00",
-                    "# Visual Studio Version 17",
-                    $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"A\", \"A.csproj\", \"{Guid.NewGuid():B}\"",
+                    "VisualStudioVersion = 18.0.0",
+                    $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"ProjA\", \"ProjA.csproj\", \"{Guid.NewGuid():B}\"",
                     "EndProject",
-                    $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"B\", \"sub\\B.csproj\", \"{Guid.NewGuid():B}\"",
+                    $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"ProjB\", \"sub\\ProjB.csproj\", \"{Guid.NewGuid():B}\"",
                     "EndProject"
                 });
-                File.WriteAllText(sln, content);
 
-                //var paths = SolutionEvaluator.ParseSolutionProjectPaths(sln);
-                //Assert.IsNotNull(paths);
-                var absA = Path.GetFullPath(projA);
-                var absB = Path.GetFullPath(projB);
-                //Assert.Contains(absA, paths.ToList());
-                //Assert.Contains(absB, paths.ToList());
+                File.WriteAllText(slnPath, slnContent);
+
+                var result = SolutionEvaluator.EvaluateSolutionProperties(slnPath, forceRefresh: true, NullLogger.Instance);
+
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result!.Projects.Count, Is.EqualTo(2));
+                Assert.That(result.Summary["FormatVersion"], Is.EqualTo("12.00"));
+                Assert.That(result.Summary["VisualStudioVersion"], Is.EqualTo("18.0.0"));
+                Assert.That(result.Projects.Any(p => p.ProjectName == "ProjA"), Is.True);
+                Assert.That(result.Projects.Any(p => p.ProjectName == "ProjB"), Is.True);
             }
-            finally { try { Directory.Delete(temp, true); } catch { } }
+            finally
+            {
+                try { Directory.Delete(temp, true); } catch { }
+            }
+        }
+
+        [Test]
+        public void EvaluateSolutionProperties_ParsesSlnxProjects()
+        {
+            var temp = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            Directory.CreateDirectory(temp);
+            try
+            {
+                var projPath = Path.Combine(temp, "App.csproj");
+                File.WriteAllText(projPath, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+
+                var slnxPath = Path.Combine(temp, "Sample.slnx");
+                File.WriteAllText(slnxPath, "<Solution><Project Path=\"App.csproj\" /></Solution>");
+
+                var result = SolutionEvaluator.EvaluateSolutionProperties(slnxPath, forceRefresh: true, NullLogger.Instance);
+
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result!.Projects.Count, Is.EqualTo(1));
+                Assert.That(result.Projects[0].ProjectName, Is.EqualTo("App"));
+                Assert.That(result.Projects[0].Framework, Is.EqualTo(".NET 10.0"));
+            }
+            finally
+            {
+                try { Directory.Delete(temp, true); } catch { }
+            }
         }
     }
 }
