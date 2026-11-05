@@ -85,7 +85,11 @@ namespace SharpShift.Inventory.Core.Utilities
                                 {
                                     Name = includeAttr.Value,
                                     Version = item.Attribute("Version")?.Value ?? string.Empty,
-                                    Source = "NuGet",
+                                    Source =
+                                        k.Equals("ProjectReference", StringComparison.OrdinalIgnoreCase) ? includeAttr.Value :
+                                        k.Equals("PackageReference", StringComparison.OrdinalIgnoreCase) ? "NuGet" :
+                                        k.Equals("FrameworkReference", StringComparison.OrdinalIgnoreCase) ? "Framework" : "Unknown"
+,
                                     DependencyType = 
                                         k.Equals("ProjectReference", StringComparison.OrdinalIgnoreCase) ? "Project" :
                                         k.Equals("PackageReference", StringComparison.OrdinalIgnoreCase) ? "Package" :
