@@ -274,7 +274,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         if (dependencyFindings.Count == 0)
             return [];
 
-        return dependencyFindings
+        return [..dependencyFindings
             .GroupBy(x => x.PackageId!, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
@@ -318,8 +318,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
             .OrderByDescending(x => x.RankScore)
             .ThenByDescending(x => x.AffectedProjects)
             .ThenBy(x => x.PackageId, StringComparer.OrdinalIgnoreCase)
-            .Take(10)
-            .ToList();
+            .Take(10)];
     }
 
     private static ModernizationScorecardData BuildModernizationScorecard(
@@ -770,7 +769,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
         lines.Add("### Recommended Priorities");
         lines.Add(string.Empty);
-        BuildRecommendedPriorities(lines, analysis!, new[] { solution }, solution.Projects);
+        BuildRecommendedPriorities(lines, analysis!, [solution], solution.Projects);
         lines.Add(string.Empty);
 
         AddModernizationScorecardSection(lines, scorecard);
