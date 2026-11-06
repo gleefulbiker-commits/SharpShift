@@ -292,7 +292,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
         lines.Add("## Solutions");
         lines.Add(string.Empty);
-        foreach (var solution in data.Solutions)
+        foreach (var solution in data.Solutions.OrderBy(n => n.SolutionName, StringComparer.OrdinalIgnoreCase))
         {
             lines.Add($"### {solution.SolutionName}");
             lines.Add(string.Empty);
