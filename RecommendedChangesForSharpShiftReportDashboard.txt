@@ -39,7 +39,6 @@ Recommended Priority:
 
 
 Notice that leadership immediately knows what to do.
-
 2. Create a "Top Findings" Section
 
 Right now every vulnerability appears as a separate finding. That creates lots of duplicates.
@@ -76,6 +75,7 @@ Upgrade to 10.0.13+
 
 
 One finding per package family.
+
 
 3. Add a Modernization Score
 

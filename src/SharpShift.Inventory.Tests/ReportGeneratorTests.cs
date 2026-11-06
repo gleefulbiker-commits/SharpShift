@@ -340,6 +340,213 @@ public class ReportGeneratorTests
         }
     }
 
+    [Test]
+    public async Task ReportGenerator_TopFindings_DeduplicatesByPackageAndIncludesCvss()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var projectPath = Path.Combine(root, "Alpha.Web.csproj");
+            await File.WriteAllTextAsync(projectPath, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+
+            var solutions = new List<SolutionInventory>
+            {
+                new()
+                {
+                    SolutionName = "AlphaSolution",
+                    SolutionPath = Path.Combine(root, "AlphaSolution.sln"),
+                    RepositoryUrl = "https://example.test/alpha",
+                    Projects =
+                    [
+                        new ProjectInventory
+                        {
+                            ProjectName = "Alpha.Web",
+                            Framework = ".NET 10.0",
+                            ProjectPath = projectPath,
+                            Dependencies =
+                            [
+                                new DependencyInventory
+                                {
+                                    Name = "Microsoft.AspNetCore.Authentication.Negotiate",
+                                    DependencyType = "Package",
+                                    Version = "10.0.0"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            };
+
+            var analysis = new ProjectAnalysisResult
+            {
+                Dependencies = new Dictionary<string, DependencySummary>
+                {
+                    ["Microsoft.AspNetCore.Authentication.Negotiate"] = new DependencySummary
+                    {
+                        Name = "Microsoft.AspNetCore.Authentication.Negotiate",
+                        DependencyType = "Package",
+                        TotalInstances = 1,
+                        Version = new Dictionary<string, int>
+                        {
+                            ["10.0.0"] = 1
+                        }
+                    }
+                },
+                RiskFindings =
+                [
+                    new RiskFinding
+                    {
+                        Category = "Dependency.Vulnerability",
+                        Severity = RiskSeverity.High,
+                        PackageId = "Microsoft.AspNetCore.Authentication.Negotiate",
+                        PackageVersion = "10.0.0",
+                        AdvisoryId = "CVE-2026-47303",
+                        CvssScore = 8.8,
+                        Description = "Vulnerability 1"
+                    },
+                    new RiskFinding
+                    {
+                        Category = "Dependency.Vulnerability",
+                        Severity = RiskSeverity.High,
+                        PackageId = "Microsoft.AspNetCore.Authentication.Negotiate",
+                        PackageVersion = "10.0.0",
+                        AdvisoryId = "CVE-2026-47300",
+                        CvssScore = 8.8,
+                        Description = "Vulnerability 2"
+                    },
+                    new RiskFinding
+                    {
+                        Category = "Dependency.Vulnerability",
+                        Severity = RiskSeverity.High,
+                        PackageId = "Microsoft.AspNetCore.Authentication.Negotiate",
+                        PackageVersion = "9.0.0",
+                        AdvisoryId = "CVE-2026-70179",
+                        CvssScore = 7.5,
+                        Description = "Vulnerability 3"
+                    }
+                ]
+            };
+
+            var inventoryPath = Path.Combine(root, "inventory.json");
+            var analysisPath = Path.Combine(root, "analysis.json");
+            await File.WriteAllTextAsync(inventoryPath, JsonSerializer.Serialize(solutions, JsonOptions));
+            await File.WriteAllTextAsync(analysisPath, JsonSerializer.Serialize(analysis, JsonOptions));
+
+            var generator = new ReportGenerator();
+            await generator.GenerateAsync(new ReportOptions
+            {
+                InputDirectory = root,
+                OutputDirectory = root,
+                InventoryFileName = "inventory.json",
+                AnalysisFileName = "analysis.json",
+                Format = ReportFormat.Markdown,
+                GenerateCombined = true,
+                GeneratePerSolution = false,
+                BaseFileName = "top-findings"
+            });
+
+            var text = await File.ReadAllTextAsync(Path.Combine(root, "top-findings.md"));
+            Assert.That(text, Does.Contain("## Top Findings"));
+            Assert.That(text, Does.Contain("### 1. Microsoft.AspNetCore.Authentication.Negotiate"));
+            Assert.That(text, Does.Contain("- CVE-2026-47303 (CVSS 8.8)"));
+            Assert.That(text, Does.Contain("- 9.0.0"));
+            Assert.That(text, Does.Contain("- 10.0.0"));
+            Assert.That(text, Does.Contain("## Modernization Scorecard"));
+            Assert.That(text, Does.Contain("Overall Score:"));
+        }
+        finally
+        {
+            DeleteDirectory(root);
+        }
+    }
+
+    [Test]
+    public async Task ReportGenerator_TopFindings_LimitsOutputToTop10AndRendersPerSolutionScorecard()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var projectPath = Path.Combine(root, "Alpha.Web.csproj");
+            await File.WriteAllTextAsync(projectPath, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+
+            var solutions = new List<SolutionInventory>
+            {
+                new()
+                {
+                    SolutionName = "AlphaSolution",
+                    SolutionPath = Path.Combine(root, "AlphaSolution.sln"),
+                    Projects =
+                    [
+                        new ProjectInventory
+                        {
+                            ProjectName = "Alpha.Web",
+                            Framework = ".NET 10.0",
+                            ProjectPath = projectPath,
+                            Dependencies =
+                            [
+                                new DependencyInventory
+                                {
+                                    Name = "Package.1",
+                                    DependencyType = "Package",
+                                    Version = "1.0.0"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            };
+
+            var findings = new List<RiskFinding>();
+            for (var i = 1; i <= 12; i++)
+            {
+                findings.Add(new RiskFinding
+                {
+                    Category = "Dependency.Vulnerability",
+                    Severity = RiskSeverity.Medium,
+                    PackageId = $"Package.{i}",
+                    PackageVersion = "1.0.0",
+                    AdvisoryId = $"CVE-2026-{40000 + i}",
+                    CvssScore = 6.1,
+                    Description = "Synthetic vulnerability"
+                });
+            }
+
+            var analysis = new ProjectAnalysisResult
+            {
+                RiskFindings = findings
+            };
+
+            var inventoryPath = Path.Combine(root, "inventory.json");
+            var analysisPath = Path.Combine(root, "analysis.json");
+            await File.WriteAllTextAsync(inventoryPath, JsonSerializer.Serialize(solutions, JsonOptions));
+            await File.WriteAllTextAsync(analysisPath, JsonSerializer.Serialize(analysis, JsonOptions));
+
+            var generator = new ReportGenerator();
+            await generator.GenerateAsync(new ReportOptions
+            {
+                InputDirectory = root,
+                OutputDirectory = root,
+                InventoryFileName = "inventory.json",
+                AnalysisFileName = "analysis.json",
+                Format = ReportFormat.Markdown,
+                GenerateCombined = false,
+                GeneratePerSolution = true,
+                BaseFileName = "top-findings-per-solution"
+            });
+
+            var text = await File.ReadAllTextAsync(Path.Combine(root, "top-findings-per-solution.AlphaSolution.md"));
+            Assert.That(text, Does.Contain("## Top Findings"));
+            Assert.That(text, Does.Contain("### 10."));
+            Assert.That(text, Does.Not.Contain("### 11."));
+            Assert.That(text, Does.Contain("## Modernization Scorecard"));
+            Assert.That(text, Does.Contain("Overall Score:"));
+        }
+        finally
+        {
+            DeleteDirectory(root);
+        }
+    }
+
     private static List<SolutionInventory> CreateSolutions()
     {
         return

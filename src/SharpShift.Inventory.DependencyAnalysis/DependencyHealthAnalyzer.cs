@@ -79,7 +79,10 @@ public sealed class DependencyHealthAnalyzer
                         Category = "Dependency.Deprecated",
                         Severity = RiskSeverity.Medium,
                         Description = $"{deprecation.PackageId} {deprecation.Version} is deprecated. {deprecation.Message}.{alternateInfo}".Trim(),
-                        Evidence = evidence
+                        Evidence = evidence,
+                        PackageId = deprecation.PackageId,
+                        PackageVersion = deprecation.Version,
+                        RecommendedVersion = deprecation.AlternatePackageId
                     });
                 }
             }
@@ -110,7 +113,11 @@ public sealed class DependencyHealthAnalyzer
                         Category = "Dependency.Vulnerability",
                         Severity = vulnerability.Severity,
                         Description = $"{vulnerability.PackageId} {vulnerability.Version}: {description}",
-                        Evidence = evidence
+                        Evidence = evidence,
+                        PackageId = vulnerability.PackageId,
+                        PackageVersion = vulnerability.Version,
+                        AdvisoryId = vulnerability.AdvisoryId,
+                        CvssScore = vulnerability.CvssRating.BaseScore
                     });
                 }
             }

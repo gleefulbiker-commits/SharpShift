@@ -26,6 +26,31 @@ namespace SharpShift.Inventory.Core.Models
         /// Optional contextual evidence or location (file, line, symbol).
         /// </summary>
         public string? Evidence { get; set; }
+
+        /// <summary>
+        /// Optional dependency package identifier associated with the finding.
+        /// </summary>
+        public string? PackageId { get; set; }
+
+        /// <summary>
+        /// Optional dependency package version associated with the finding.
+        /// </summary>
+        public string? PackageVersion { get; set; }
+
+        /// <summary>
+        /// Optional advisory identifier (e.g., CVE, GHSA) for vulnerability findings.
+        /// </summary>
+        public string? AdvisoryId { get; set; }
+
+        /// <summary>
+        /// Optional CVSS base score for vulnerability findings.
+        /// </summary>
+        public double? CvssScore { get; set; }
+
+        /// <summary>
+        /// Optional version hint or remediated target version.
+        /// </summary>
+        public string? RecommendedVersion { get; set; }
     }
 
     /// <summary>
