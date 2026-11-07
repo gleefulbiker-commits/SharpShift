@@ -48,14 +48,26 @@ namespace SharpShift.Inventory.Core.Utilities
 
             try
             {
+                var projectFilesPath = Path.GetDirectoryName(projectPath) ?? string.Empty;
+
                 projectInventory = new Models.ProjectInventory
                 {
                     ProjectPath = projectPath,
-                    ProjectName = Path.GetFileNameWithoutExtension(projectPath)
+                    ProjectName = Path.GetFileNameWithoutExtension(projectPath),
+                    Metadata = new Dictionary<string, object>
+                    {
+                        ["ProjectFilesPath"] = projectFilesPath,
+                        ["HasPackagesConfig"] = File.Exists(Path.Combine(projectFilesPath, "packages.config")),
+                        ["HasWebConfig"] = File.Exists(Path.Combine(projectFilesPath, "web.config")),
+                        ["HasAppConfig"] = File.Exists(Path.Combine(projectFilesPath, "app.config"))
+                    }
                 };
 
                 var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var doc = XDocument.Load(projectPath);
+                var projectElement = doc.XPathSelectElement("./Project");
+                var isSdkStyle = projectElement?.Attribute("Sdk") is not null;
+                projectInventory.IsSdkStyle = isSdkStyle;
                 var itemGroups = doc.Descendants()
                     .Where(x => string.Equals(x.Name.LocalName, "ItemGroup", StringComparison.OrdinalIgnoreCase));
 
@@ -103,7 +115,6 @@ namespace SharpShift.Inventory.Core.Utilities
 
                     if(k.Equals("OutputType"))
                     {
-                        var projectElement = doc.XPathSelectElement("./Project");
                         var propertyGroupElement = doc.XPathSelectElement("./Project/PropertyGroup");
                         var outputTypeElement = doc.XPathSelectElement("./Project/PropertyGroup/OutputType");
                         var outputType = doc.XPathSelectElement("./Project/PropertyGroup/OutputType");

@@ -93,13 +93,20 @@ namespace SharpShift.Inventory.Core.Utilities
                 if (!string.IsNullOrEmpty(projectLocalPath))
                 {
                     var absoluteProjectPath = Path.Combine(Path.GetDirectoryName(solutionInventory.SolutionPath) ?? string.Empty, projectLocalPath);
+                    var projectFilesPath = Path.GetDirectoryName(absoluteProjectPath) ?? string.Empty;
+
                     solutionInventory.Projects.Add(new ProjectInventory
                     {
                         ProjectName = Path.GetFileNameWithoutExtension(absoluteProjectPath),
                         ProjectPath = absoluteProjectPath,
                         ProjectTypeId = projectTypeId,
                         ProjectType = DotNetProjectTypeGuids.Map.ContainsKey(projectTypeId) ? DotNetProjectTypeGuids.Map[projectTypeId] : "Unknown",
-                        ProjectId = projectId
+                        ProjectId = projectId,
+                        Metadata = new Dictionary<string, object>
+                        {
+                            ["ProjectLocalPath"] = projectLocalPath,
+                            ["ProjectFilesPath"] = projectFilesPath,
+                        }
                     });
                 }
             }
@@ -114,7 +121,11 @@ namespace SharpShift.Inventory.Core.Utilities
                 }
 
                 project.Framework = evaluatedProject.Framework;
-                project.Metadata = evaluatedProject.Metadata;
+                project.IsSdkStyle = evaluatedProject.IsSdkStyle;
+                foreach (var kvp in evaluatedProject.Metadata)
+                {
+                    project.Metadata.TryAdd(kvp.Key, kvp.Value);
+                }
                 project.Dependencies = evaluatedProject.Dependencies;
                 project.LocalPath = evaluatedProject.LocalPath;
             });

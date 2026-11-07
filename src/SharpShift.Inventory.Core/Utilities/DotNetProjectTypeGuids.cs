@@ -22,9 +22,9 @@ namespace SharpShift.Inventory.Core.Utilities
         /// </summary>
         public static readonly IReadOnlyDictionary<string, string> Map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"] = "C# (Legacy)",
+            ["{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"] = "C# Project",
             ["{9A19103F-16F7-4668-BE54-9A1E7A4F7556}"] = "C# (SDK-Style)",
-            ["{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"] = "VB.NET (Legacy)",
+            ["{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"] = "VB.NET Project",
             ["{778DAE3C-4631-46EA-AA77-85C1314464D9}"] = "VB.NET (SDK-Style)",
             ["{F2A71F9B-5D33-465A-A702-920D77279786}"] = "F#",
             ["{BC8A1FFA-BEE3-4634-8014-F334798102B3}"] = "Visual C++",

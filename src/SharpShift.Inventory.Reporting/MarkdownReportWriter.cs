@@ -97,7 +97,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
         foreach (var project in projects)
         {
-            if (IsLegacyProjectFile(project))
+            if (project.IsLegacyProject)
                 legacyCount++;
         }
 
@@ -135,30 +135,6 @@ internal sealed class MarkdownReportWriter : IReportWriter
             return FrameworkSupportStatus.NearEndOfSupport;
 
         return FrameworkSupportStatus.OutOfSupport;
-    }
-
-    private static bool IsLegacyProjectFile(ProjectInventory project)
-    {
-        if (string.IsNullOrWhiteSpace(project.ProjectPath) || !File.Exists(project.ProjectPath))
-            return false;
-
-        if (project.ProjectType.Contains("Legacy", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        try
-        {
-            var document = XDocument.Load(project.ProjectPath, LoadOptions.None);
-            var root = document.Root;
-            if (root is null || !string.Equals(root.Name.LocalName, "Project", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            var sdkAttribute = root.Attribute("Sdk")?.Value;
-            return string.IsNullOrWhiteSpace(sdkAttribute);
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private static Dictionary<RiskSeverity, int> InitializeSeverityCounts()
@@ -521,7 +497,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         if (projects.Count == 0)
             return consistencyScore;
 
-        var sdkStyleProjects = projects.Count(p => !IsLegacyProjectFile(p));
+        var sdkStyleProjects = projects.Count(p => !p.IsLegacyProject);
         var sdkStyleScore = (int)Math.Round((double)sdkStyleProjects / projects.Count * 100, MidpointRounding.AwayFromZero);
 
         return ClampScore((consistencyScore + sdkStyleScore) / 2);
@@ -539,7 +515,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         if (projects.Count == 0)
             return sourceControlScore;
 
-        var modernProjectFiles = projects.Count(p => !IsLegacyProjectFile(p));
+        var modernProjectFiles = projects.Count(p => !p.IsLegacyProject);
         var projectFileScore = (int)Math.Round((double)modernProjectFiles / projects.Count * 100, MidpointRounding.AwayFromZero);
 
         return ClampScore((sourceControlScore + projectFileScore) / 2);
@@ -662,11 +638,12 @@ internal sealed class MarkdownReportWriter : IReportWriter
             }
             lines.Add(string.Empty);
 
-            lines.Add("| Project | Type | Framework | Path | Dependencies | ");
-            lines.Add("|---|---|---|---|---:|");
+            lines.Add("| Project | Is SDK Style | Type | Framework | Is Legacy | Path | Dependencies | ");
+            lines.Add("|---|---|---|---|---|---|---|");
             foreach (var project in solution.Projects.OrderBy(p => p.ProjectName, StringComparer.OrdinalIgnoreCase))
             {
-                lines.Add($"| {Escape(project.ProjectName)} | {Escape(project.ProjectType)} | {Escape(project.Framework)} | {Escape(project.ProjectPath)} | {project.Dependencies.Count} |");
+                var isLegacy = project.IsLegacyProject ? "Yes" : "No";
+                lines.Add($"| {Escape(project.ProjectName)} | {Escape(project.IsSdkStyle.ToString())} | {Escape(project.ProjectType)} | {Escape(project.Framework)} | {Escape(isLegacy)} | {Escape(project.ProjectPath)} | {project.Dependencies.Count} |");
             }
             lines.Add(string.Empty);
         }
@@ -797,11 +774,12 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
         lines.Add("## Projects");
         lines.Add(string.Empty);
-        lines.Add("| Project | Type | Framework | Path | Dependencies |");
-        lines.Add("|---|---|---|---|---:|");
+        lines.Add("| Project | Is SDK Style | Type | Framework | Is Legacy | Path | Dependencies | ");
+        lines.Add("|---|---|---|---|---|---|---|");
         foreach (var project in solution.Projects.OrderBy(p => p.ProjectName, StringComparer.OrdinalIgnoreCase))
         {
-            lines.Add($"| {Escape(project.ProjectName)} | {Escape(project.ProjectType)} | {Escape(project.Framework)} | {Escape(project.ProjectPath)} | {project.Dependencies.Count} |");
+            var isLegacy = project.IsLegacyProject ? "Yes" : "No";
+            lines.Add($"| {Escape(project.ProjectName)} | {Escape(project.IsSdkStyle.ToString())} | {Escape(project.ProjectType)} | {Escape(project.Framework)} | {Escape(isLegacy)} | {Escape(project.ProjectPath)} | {project.Dependencies.Count} |");
         }
         lines.Add(string.Empty);
 

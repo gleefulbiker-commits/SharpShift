@@ -7,6 +7,12 @@ namespace SharpShift.Inventory.Core.Models
     /// </summary>
     public class ProjectInventory
     {
+        private static readonly string[] _legacyFrameworkVersions = [
+            ".NET Framework",
+            ".NET Core 3.1",
+            ".NET Standard"
+        ];
+
         /// <summary>
         /// Detected project ID.
         /// </summary>
@@ -31,6 +37,54 @@ namespace SharpShift.Inventory.Core.Models
         /// Normalized framework string (e.g., ".NET Framework 4.6.2").
         /// </summary>
         public string Framework { get; set; } = string.Empty;
+
+        public string? FrameworkVersion { get; set; }
+
+        public bool IsSdkStyle { get; set; } = false;
+
+        public bool IsLegacyProject
+        {
+            get
+            {
+                if (IsSdkStyle)
+                {
+                    return false;
+                }
+
+                if (_legacyFrameworkVersions.Contains(Framework))
+                {
+                    //return true;
+                }
+
+                if (string.IsNullOrEmpty(Framework))
+                {
+                    return true;
+                }
+
+                if (Metadata.TryGetValue("HasPackagesConfig", out var hasPackagesConfigObj) &&
+                    hasPackagesConfigObj is bool hasPackagesConfig &&
+                    hasPackagesConfig)
+                {
+                    return true;
+                }
+
+                if (Metadata.TryGetValue("HasWebConfig", out var hasWebConfigObj) &&
+                    hasWebConfigObj is bool hasWebConfig &&
+                    hasWebConfig)
+                {
+                    return true;
+                }
+
+                if (Metadata.TryGetValue("HasAppConfig", out var hasAppConfigObj) &&
+                    hasAppConfigObj is bool hasAppConfig &&
+                    hasAppConfig)
+                {
+                    return true;
+                }   
+
+                return false;
+            }
+        }
 
         /// <summary>
         /// Path to the project file discovered on disk.
