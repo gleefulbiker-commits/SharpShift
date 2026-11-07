@@ -53,35 +53,12 @@ namespace SharpShift
                 Environment.SetEnvironmentVariable("GITHUB_ACCOUNTS", configuration["GitHubAccounts"] ?? "alemnor");
                 var command = args[0].ToLowerInvariant();
 
-                if (command.Equals("runall", StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogInformation("Running scan, analyze, and report in sequence.");
-                    var scanResult = await RunScan(args, defaultInventoryFilename, defaultAnalysisFilename, logger, provider, loggerFactory);
-                    if (scanResult != 0)
-                    {
-                        logger.LogError("Scan command failed with exit code {ExitCode}. Aborting further execution.", scanResult);
-                        return scanResult;
-                    }
-                    var analyzeResult = await RunAnalysis(args, defaultInventoryFilename, defaultAnalysisFilename, logger);
-                    if (analyzeResult != 0)
-                    {
-                        logger.LogError("Analyze command failed with exit code {ExitCode}. Aborting further execution.", analyzeResult);
-                        return analyzeResult;
-                    }
-                    var reportResult = await GenerateReport(args, defaultInventoryFilename, defaultAnalysisFilename, defaultReportBaseFilename, logger);
-                    if (reportResult != 0)
-                    {
-                        logger.LogError("Report command failed with exit code {ExitCode}.", reportResult);
-                        return reportResult;
-                    }
-
-                    return 0; // All commands succeeded
-                }
                 var result = command switch
                 {
                     "scan" => await RunScan(args, defaultInventoryFilename, defaultAnalysisFilename, logger, provider, loggerFactory),
                     "analyze" => await RunAnalysis(args, defaultInventoryFilename, defaultAnalysisFilename, logger),
                     "report" => await GenerateReport(args, defaultInventoryFilename, defaultAnalysisFilename, defaultReportBaseFilename, logger),
+                    "runall" => await RunAll(args, defaultInventoryFilename, defaultAnalysisFilename, defaultReportBaseFilename, logger, provider, loggerFactory),
                     _ => throw new InvalidOperationException($"Invalid command. '{args[0]}' is not a valid subcommand.")
                 };
 
@@ -322,6 +299,29 @@ namespace SharpShift
                 logger.LogError(ex, "Report format not supported.");
                 return 2;
             }
+        }
+
+        public static async Task<int> RunAll(string[] args, string defaultOutputFilename, string defaultAnalysisFilename, string defaultReportBaseFilename, ILogger logger, IServiceProvider provider, ILoggerFactory loggerFactory)
+        {
+            var scanResult = await RunScan(args, defaultOutputFilename, defaultAnalysisFilename, logger, provider, loggerFactory);
+            if (scanResult != 0)
+            {
+                logger.LogError("Scan command failed with exit code {ExitCode}. Aborting further execution.", scanResult);
+                return scanResult;
+            }
+            var analyzeResult = await RunAnalysis(args, defaultOutputFilename, defaultAnalysisFilename, logger);
+            if (analyzeResult != 0)
+            {
+                logger.LogError("Analyze command failed with exit code {ExitCode}. Aborting further execution.", analyzeResult);
+                return analyzeResult;
+            }
+            var reportResult = await GenerateReport(args, defaultOutputFilename, defaultAnalysisFilename, defaultReportBaseFilename, logger);
+            if (reportResult != 0)
+            {
+                logger.LogError("Report command failed with exit code {ExitCode}.", reportResult);
+                return reportResult;
+            }
+            return 0; // All commands succeeded
         }
     }
 }

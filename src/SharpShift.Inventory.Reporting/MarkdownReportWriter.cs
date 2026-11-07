@@ -772,18 +772,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         }
         lines.Add(string.Empty);
 
-        lines.Add("## Projects");
-        lines.Add(string.Empty);
-        lines.Add("| Project | Is SDK Style | Type | Framework | Is Legacy | Path | Dependencies | ");
-        lines.Add("|---|---|---|---|---|---|---|");
-        foreach (var project in solution.Projects.OrderBy(p => p.ProjectName, StringComparer.OrdinalIgnoreCase))
-        {
-            var isLegacy = project.IsLegacyProject ? "Yes" : "No";
-            lines.Add($"| {Escape(project.ProjectName)} | {Escape(project.IsSdkStyle.ToString())} | {Escape(project.ProjectType)} | {Escape(project.Framework)} | {Escape(isLegacy)} | {Escape(project.ProjectPath)} | {project.Dependencies.Count} |");
-        }
-        lines.Add(string.Empty);
-
-        lines.Add("## Analysis Note");
+         lines.Add("## Analysis Note");
         lines.Add(string.Empty);
         if (analysis is null)
         {
@@ -797,6 +786,18 @@ internal sealed class MarkdownReportWriter : IReportWriter
             lines.Add($"- Global dependency instances: {analysis.Dependencies.Values.Sum(d => d.TotalInstances)}");
             lines.Add($"- Global risk findings: {analysis.RiskFindings.Count}");
         }
+
+        lines.Add("## Projects Appendix");
+        lines.Add(string.Empty);
+        lines.Add("| Project | Is SDK Style | Type | Framework | Is Legacy | Path | Dependencies | ");
+        lines.Add("|---|---|---|---|---|---|---|");
+        foreach (var project in solution.Projects.OrderBy(p => p.ProjectName, StringComparer.OrdinalIgnoreCase))
+        {
+            var isLegacy = project.IsLegacyProject ? "Yes" : "No";
+            lines.Add($"| {Escape(project.ProjectName)} | {Escape(project.IsSdkStyle.ToString())} | {Escape(project.ProjectType)} | {Escape(project.Framework)} | {Escape(isLegacy)} | {Escape(project.ProjectPath)} | {project.Dependencies.Count} |");
+        }
+        lines.Add(string.Empty);
+
 
         return string.Join(Environment.NewLine, lines) + Environment.NewLine;
     }

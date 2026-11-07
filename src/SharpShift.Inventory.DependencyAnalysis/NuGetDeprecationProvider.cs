@@ -19,7 +19,6 @@ namespace SharpShift.Inventory.DependencyAnalysis;
 
 public sealed class NuGetDeprecationProvider : IDependencyDeprecationProvider
 {
-    private static readonly string NuGetServiceIndexUrl = "https://api.nuget.org/v3/index.json";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -29,7 +28,7 @@ public sealed class NuGetDeprecationProvider : IDependencyDeprecationProvider
     private readonly HttpRequestExecutor _requestExecutor;
     private readonly DependencyHealthCheckOptions _options;
     private readonly ConcurrentDictionary<string, string> _registrationBaseUrlCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<PackageHealthQuery, IReadOnlyList<PackageDeprecationRecord>> _queryCache = new();
+    private readonly ConcurrentDictionary<PackageHealthQuery, Task<IReadOnlyList<PackageDeprecationRecord>>> _queryCache = new();
 
     public NuGetDeprecationProvider(HttpClient httpClient, DependencyHealthCheckOptions? options = null)
     {
@@ -41,51 +40,51 @@ public sealed class NuGetDeprecationProvider : IDependencyDeprecationProvider
     public Task<IReadOnlyList<PackageDeprecationRecord>> GetDeprecationsAsync(Microsoft.Extensions.Logging.ILogger logger, PackageHealthQuery query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
-        return _queryCache.GetOrAdd(query, q => GetDeprecationsCoreAsync(logger, q, cancellationToken).GetAwaiter().GetResult()).AsTaskResult();
+        return _queryCache.GetOrAdd(query, q => GetDeprecationsCoreAsync(logger, q, cancellationToken));
     }
 
-    private static async Task<IReadOnlyList<PackageDeprecationRecord>> GetDeprecationsCoreAsync(
+    private async Task<IReadOnlyList<PackageDeprecationRecord>> GetDeprecationsCoreAsync(
         Microsoft.Extensions.Logging.ILogger logger,
         PackageHealthQuery query,
         CancellationToken cancellationToken)
     {
-        var nullLogger = NuGet.Common.NullLogger.Instance;
-        var packageDeprecationRecords = new List<PackageDeprecationRecord>();
+        LogMessages.AnalyzingDependency(logger, query.PackageId, query.Version);
 
-        var repository = Repository.Factory.GetCoreV3(NuGetServiceIndexUrl);
+        var registrationBaseUrl = await ResolveRegistrationBaseUrlAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(registrationBaseUrl))
+            return [];
 
-        var metadataResource =
-            await repository.GetResourceAsync<PackageMetadataResource>() 
-                ?? throw new InvalidOperationException("Failed to get PackageMetadataResource.");
+        var registrationIndexUrl = $"{registrationBaseUrl.TrimEnd('/')}/{query.PackageId.ToLowerInvariant()}/index.json";
 
-        var metadata = await metadataResource.GetMetadataAsync(
-            query.PackageId,
-            includePrerelease: false,
-            includeUnlisted: false,
-            new SourceCacheContext(),
-            nullLogger,
-            CancellationToken.None);
+        using var response = await _requestExecutor.SendWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, registrationIndexUrl),
+            cancellationToken);
 
-        foreach (var package in metadata.Where(p => query.Version.StartsWith(p.Identity.Version.ToString())))
-        {
-            var deprecationMetadata = await package.GetDeprecationMetadataAsync();
+        if (!response.IsSuccessStatusCode)
+            return [];
 
-            LogMessages.AnalyzingDependency(logger, query.PackageId, query.Version);
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var registration = await JsonSerializer.DeserializeAsync<RegistrationIndexResponse>(stream, JsonOptions, cancellationToken: cancellationToken);
 
-            if (deprecationMetadata is not null)
-            {
-                var packageDeprecationRecord = new PackageDeprecationRecord(
-                    query.PackageId,
-                    query.Version,
-                    deprecationMetadata?.Message ?? string.Empty,
-                    deprecationMetadata?.AlternatePackage?.PackageId,
-                    null);
+        if (registration?.Items is null || registration.Items.Count == 0)
+            return [];
 
-                packageDeprecationRecords.Add(packageDeprecationRecord);
-            }
-        }
+        var records = registration.Items
+            .SelectMany(page => page.Items ?? [])
+            .Select(leaf => leaf.CatalogEntry)
+            .Where(entry =>
+                entry is not null
+                && string.Equals(entry.Version, query.Version, StringComparison.OrdinalIgnoreCase)
+                && entry.Deprecation is not null)
+            .Select(entry => new PackageDeprecationRecord(
+                query.PackageId,
+                query.Version,
+                entry!.Deprecation!.Message ?? string.Empty,
+                entry.Deprecation.AlternatePackage?.Id,
+                null))
+            .ToList();
 
-        return packageDeprecationRecords;
+        return records;
     }
 
     private async Task<string> ResolveRegistrationBaseUrlAsync(CancellationToken cancellationToken)
