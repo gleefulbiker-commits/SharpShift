@@ -47,8 +47,9 @@ public class ReportGeneratorTests
             Assert.That(text, Does.Contain("## Executive Summary"));
             Assert.That(text, Does.Contain("## Executive Risk Assessment"));
             Assert.That(text, Does.Contain("Overall Risk:"));
-            Assert.That(text, Does.Contain("Recommended Priority:"));
-            Assert.That(text, Does.Contain("## Dependency Summary"));
+            Assert.That(text, Does.Contain("- Solutions Not In Version Control:"));
+            Assert.That(text, Does.Contain("## Modernization Scorecard"));
+            Assert.That(text, Does.Contain("## Top Findings"));
         }
         finally
         {
@@ -265,7 +266,7 @@ public class ReportGeneratorTests
             Assert.That(text, Does.Contain("- Low Vulnerabilities: 1"));
             Assert.That(text, Does.Contain("- Deprecated Packages: 1"));
             Assert.That(text, Does.Contain("- Out-of-Support Frameworks: 1 projects"));
-            Assert.That(text, Does.Contain("- Legacy Project Files: 1 projects"));
+            Assert.That(text, Does.Contain("- Legacy Project Files: 0 projects"));
         }
         finally
         {

@@ -19,9 +19,9 @@ namespace SharpShift.Inventory.Discovery
     public class GitHubSolutionDiscoverer : ISolutionDiscoverer
     {
         private readonly HttpClient _http;
-        private readonly ILogger<GitHubSolutionDiscoverer>? _logger;
+        private readonly ILogger? _logger;
 
-        public GitHubSolutionDiscoverer(HttpClient httpClient, ILogger<GitHubSolutionDiscoverer>? logger = null)
+        public GitHubSolutionDiscoverer(HttpClient httpClient, ILogger? logger = null)
         {
             _http = httpClient ?? new HttpClient();
             _logger = logger;

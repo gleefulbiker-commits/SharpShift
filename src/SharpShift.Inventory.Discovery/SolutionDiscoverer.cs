@@ -1,11 +1,12 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using SharpShift.Inventory.Core.Interfaces;
+using SharpShift.Inventory.Core.Models;
+using SharpShift.LoggerMessages;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using SharpShift.Inventory.Core.Interfaces;
-using SharpShift.Inventory.Core.Models;
-using SharpShift.LoggerMessages;
 
 namespace SharpShift.Inventory.Discovery
 {
@@ -14,22 +15,22 @@ namespace SharpShift.Inventory.Discovery
     /// </summary>
     public class SolutionDiscoverer : ISolutionDiscoverer
     {
-        private readonly ILogger<SolutionDiscoverer>? _logger;
+        private readonly ILogger? _logger;
         private readonly FileSystemSolutionDiscoverer _fsDiscoverer;
         private readonly GitHubSolutionDiscoverer _ghDiscoverer;
 
         public SolutionDiscoverer()
-            : this(null, null)
+            : this(NullLogger.Instance, null)
         {
         }
 
-        public SolutionDiscoverer(ILogger<SolutionDiscoverer>? logger, ILoggerFactory? loggerFactory)
+        public SolutionDiscoverer(ILogger? logger, ILoggerFactory? loggerFactory)
         {
             _logger = logger;
-            _fsDiscoverer = new FileSystemSolutionDiscoverer(loggerFactory?.CreateLogger<FileSystemSolutionDiscoverer>());
+            _fsDiscoverer = new FileSystemSolutionDiscoverer(logger);
             // Create GitHub discoverer with default HttpClient.
             var http = new System.Net.Http.HttpClient();
-            _ghDiscoverer = new GitHubSolutionDiscoverer(http, loggerFactory?.CreateLogger<GitHubSolutionDiscoverer>());
+            _ghDiscoverer = new GitHubSolutionDiscoverer(http, logger);
         }
 
         /// <inheritdoc />

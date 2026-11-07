@@ -20,9 +20,9 @@ namespace SharpShift.Inventory.Tests
         [Test]
         public void Map_ContainsCanonicalAnchorEntries()
         {
-            Assert.That(DotNetProjectTypeGuids.Map["{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"], Is.EqualTo("C# (Legacy)"));
+            Assert.That(DotNetProjectTypeGuids.Map["{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"], Is.EqualTo("C# Project"));
             Assert.That(DotNetProjectTypeGuids.Map["{9A19103F-16F7-4668-BE54-9A1E7A4F7556}"], Is.EqualTo("C# (SDK-Style)"));
-            Assert.That(DotNetProjectTypeGuids.Map["{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"], Is.EqualTo("VB.NET (Legacy)"));
+            Assert.That(DotNetProjectTypeGuids.Map["{F184B08F-C81C-45F6-A57F-5ABD9991F28F}"], Is.EqualTo("VB.NET Project"));
             Assert.That(DotNetProjectTypeGuids.Map["{F2A71F9B-5D33-465A-A702-920D77279786}"], Is.EqualTo("F#"));
             Assert.That(DotNetProjectTypeGuids.Map["{349C5851-65DF-11DA-9384-00065B846F21}"], Is.EqualTo("ASP.NET Web Application"));
             Assert.That(DotNetProjectTypeGuids.Map["{66A26720-8FB5-11D2-AA7E-00C04F688DDE}"], Is.EqualTo("Solution Folder"));

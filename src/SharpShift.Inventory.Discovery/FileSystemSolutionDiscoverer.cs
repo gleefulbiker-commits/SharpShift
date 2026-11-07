@@ -12,7 +12,7 @@ namespace SharpShift.Inventory.Discovery
     /// <summary>
     /// Discovers solution files on the local file system (*.sln and *.slnx).
     /// </summary>
-    public class FileSystemSolutionDiscoverer(ILogger<FileSystemSolutionDiscoverer>? logger) : ISolutionDiscoverer
+    public class FileSystemSolutionDiscoverer(ILogger? logger) : ISolutionDiscoverer
     {
         public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath)
         {

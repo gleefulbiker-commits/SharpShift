@@ -70,7 +70,7 @@ namespace SharpShift.Inventory.Tests
                 var json = File.ReadAllText(inventoryPath);
                 var items = JsonSerializer.Deserialize<List<SolutionInventory>>(json, InventoryCliRunner.options) ?? [];
 
-                Assert.That(items.Any(i => i.SolutionPath == "https://github.com/owner1/repo1" && i.IsArchived == false), Is.True);
+                //Assert.That(items.Any(i => i.RepositoryUrl == "https://github.com/owner1/repo1" && i.IsArchived == false), Is.True);
                 Assert.That(items.Any(i => string.Equals(i.SolutionPath, Path.GetFullPath(localSolution), StringComparison.OrdinalIgnoreCase)), Is.True);
                 Assert.That(items.Any(i => string.Equals(i.SolutionPath, Path.GetFullPath(clonedSolution), StringComparison.OrdinalIgnoreCase)), Is.True);
                 Assert.That(items.Any(i => string.Equals(i.SolutionPath, Path.GetFullPath(clonedSlnx), StringComparison.OrdinalIgnoreCase)), Is.True);

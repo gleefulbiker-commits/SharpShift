@@ -82,7 +82,7 @@ public class DependencyHealthAnalyzerTests
               "id": "GHSA-1234",
               "summary": "Example issue",
               "details": "More details",
-              "severity": [ { "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/9.8" } ],
+              "severity": [ { "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H" } ],
               "references": [ { "url": "https://example.test/advisory" } ]
             }
           ]

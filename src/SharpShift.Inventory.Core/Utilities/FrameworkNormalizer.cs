@@ -75,7 +75,7 @@ namespace SharpShift.Inventory.Core.Utilities
 
             // legacy like v4.6.2
             if (tf.StartsWith("v", StringComparison.OrdinalIgnoreCase))
-                return $".NET Framework {tf[0]}";
+                return $".NET Framework {tf[1..]}";
 
             return tf;
         }
