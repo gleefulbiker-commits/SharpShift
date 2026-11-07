@@ -21,7 +21,7 @@ namespace SharpShift.Inventory.Tests
         {
             var missingPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.sln");
 
-            var result = SolutionEvaluator.EvaluateSolutionProperties(missingPath, forceRefresh: true, NullLogger.Instance);
+            var result = SolutionEvaluator.EvaluateSolutionProperties(missingPath, forceRefresh: true, NullLogger.Instance).GetAwaiter().GetResult();
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.SolutionPath, Is.EqualTo(missingPath));
@@ -29,7 +29,7 @@ namespace SharpShift.Inventory.Tests
         }
 
         [Test]
-        public void EvaluateSolutionProperties_ParsesSlnProjects()
+        public async Task EvaluateSolutionProperties_ParsesSlnProjects()
         {
             var temp = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             Directory.CreateDirectory(temp);
@@ -56,7 +56,7 @@ namespace SharpShift.Inventory.Tests
 
                 File.WriteAllText(slnPath, slnContent);
 
-                var result = SolutionEvaluator.EvaluateSolutionProperties(slnPath, forceRefresh: true, NullLogger.Instance);
+                var result = SolutionEvaluator.EvaluateSolutionProperties(slnPath, forceRefresh: true, NullLogger.Instance).GetAwaiter().GetResult();
 
                 Assert.That(result, Is.Not.Null);
                 Assert.That(result!.Projects.Count, Is.EqualTo(2));
@@ -84,7 +84,7 @@ namespace SharpShift.Inventory.Tests
                 var slnxPath = Path.Combine(temp, "Sample.slnx");
                 File.WriteAllText(slnxPath, "<Solution><Project Path=\"App.csproj\" /></Solution>");
 
-                var result = SolutionEvaluator.EvaluateSolutionProperties(slnxPath, forceRefresh: true, NullLogger.Instance);
+                var result = SolutionEvaluator.EvaluateSolutionProperties(slnxPath, forceRefresh: true, NullLogger.Instance).GetAwaiter().GetResult();
 
                 Assert.That(result, Is.Not.Null);
                 Assert.That(result!.Projects.Count, Is.EqualTo(1));

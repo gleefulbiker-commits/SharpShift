@@ -54,7 +54,7 @@ namespace SharpShift.Inventory.Core.Utilities
         /// Returns null if the solution path is invalid.
         /// Results are cached per solution path.
         /// </summary>
-        public static SolutionInventory? EvaluateSolutionProjects(SolutionInventory solutionInventory, ILogger? logger = null)
+        public static async Task<SolutionInventory?> EvaluateSolutionProjects(SolutionInventory solutionInventory, ILogger? logger = null)
         {
             ArgumentNullException.ThrowIfNull(solutionInventory, nameof(solutionInventory));
 
@@ -62,13 +62,13 @@ namespace SharpShift.Inventory.Core.Utilities
                 return cached;
 
             // Evaluate the solution for its properties.
-            var slnFileText = File.ReadAllText(solutionInventory.SolutionPath);
+            var slnFileText = await File.ReadAllTextAsync(solutionInventory.SolutionPath);
             var slnFormatVersion = SlnVersionRegex().Match(slnFileText).Groups["version"].Value;
             solutionInventory.Summary["FormatVersion"] = slnFormatVersion;
             var visualStudioVersion = VisualStudioVersionRegex().Match(slnFileText).Groups["version"].Value;
             solutionInventory.Summary["VisualStudioVersion"] = visualStudioVersion;
             var projectMatches = LegacyProjectRegex().Matches(slnFileText);
-            var repoUrlResult = GitHelper.TryGetRepoUrlAsync(Path.GetDirectoryName(solutionInventory.SolutionPath) ?? string.Empty, cancellationToken: default).GetAwaiter().GetResult();
+            var repoUrlResult = await GitHelper.TryGetRepoUrlAsync(Path.GetDirectoryName(solutionInventory.SolutionPath) ?? string.Empty, cancellationToken: default);
 
             solutionInventory.RepositoryUrl = repoUrlResult.RepoUrl ?? string.Empty;
 
@@ -134,7 +134,7 @@ namespace SharpShift.Inventory.Core.Utilities
             return solutionInventory;
         }
 
-        public static SolutionInventory? EvaluateSolutionProperties(string solutionPath, bool forceRefresh = false, ILogger? logger = null)
+        public static async Task<SolutionInventory?> EvaluateSolutionProperties(string solutionPath, bool forceRefresh = false, ILogger? logger = null)
         {
             var solutionInventory = new SolutionInventory
             {
@@ -165,7 +165,7 @@ namespace SharpShift.Inventory.Core.Utilities
                     return solutionInventory;
                 }
 
-                return EvaluateSolutionProjects(solutionInventory, logger);
+                return await EvaluateSolutionProjects(solutionInventory, logger);
             }
             catch (Exception ex)
             {

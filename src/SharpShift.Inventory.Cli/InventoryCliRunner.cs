@@ -55,7 +55,7 @@ namespace SharpShift.Inventory.Cli
                 var remoteEntries = GetRemoteRepoEntries(discoveryEntries).ToList();
                 var evaluatedSolutionPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                EvaluateAndAppendSolutions(
+                await EvaluateAndAppendSolutions(
                     logger,
                     fileSystemEntries.Select(entry => entry.LocalPath!),
                     allSolutions,
@@ -63,7 +63,7 @@ namespace SharpShift.Inventory.Cli
 
                 var cloneRoots = ResolveCloneRootsSequential(remoteEntries, logger);
                 var clonedSolutionFiles = DiscoverSolutionFilesUnderRoots(cloneRoots, logger);
-                EvaluateAndAppendSolutions(logger, clonedSolutionFiles, allSolutions, evaluatedSolutionPaths);
+                await EvaluateAndAppendSolutions(logger, clonedSolutionFiles, allSolutions, evaluatedSolutionPaths);
 
                 if (clean)
                 {
@@ -111,7 +111,7 @@ namespace SharpShift.Inventory.Cli
                 && !string.IsNullOrWhiteSpace(entry.RepoUrl));
         }
 
-        private static void EvaluateAndAppendSolutions(
+        private static async Task EvaluateAndAppendSolutions(
             ILogger logger,
             IEnumerable<string> solutionPaths,
             List<SolutionInventory> allSolutions,
@@ -130,7 +130,7 @@ namespace SharpShift.Inventory.Cli
                 }
 
                 LogMessages.EvaluatingLocalSolutionFile(logger, normalizedPath);
-                var solutionInventory = SolutionEvaluator.EvaluateSolutionProperties(normalizedPath, forceRefresh: true, logger);
+                var solutionInventory = await SolutionEvaluator.EvaluateSolutionProperties(normalizedPath, forceRefresh: true, logger);
                 if (solutionInventory is not null)
                 {
                     solutionInventory.Summary["projectCount"] = solutionInventory.Projects.Count;
