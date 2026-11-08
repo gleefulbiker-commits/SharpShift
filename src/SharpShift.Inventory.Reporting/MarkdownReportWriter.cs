@@ -74,7 +74,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
         var weightedScore = ComputeWeightedRiskScore(vulnerabilityCounts);
         var overallRisk = GetOverallRiskLabel(weightedScore);
-        var outOfSupportFrameworkProjects = CountOutOfSupportFrameworkProjects(projects);
+        var outOfSupportFrameworkProjects = GetOutOfSupportFrameworkProjects(projects);
         var legacyProjectFiles = CountLegacyProjectFiles(projects);
 
         return new ExecutiveRiskAssessmentData(
@@ -86,9 +86,13 @@ internal sealed class MarkdownReportWriter : IReportWriter
             legacyProjectFiles);
     }
 
-    private static int CountOutOfSupportFrameworkProjects(IReadOnlyList<SharpShift.Inventory.Core.Models.ProjectInventory> projects)
+    private static IEnumerable<ProjectInventory> GetOutOfSupportFrameworkProjects(IReadOnlyList<SharpShift.Inventory.Core.Models.ProjectInventory> projects)
     {
-        return projects.Count(project => ClassifyFrameworkSupportStatus(project.Framework) == FrameworkSupportStatus.OutOfSupport);
+        var outOfSupportProjects = projects.Where(project =>
+        {
+            return ClassifyFrameworkSupportStatus(project.Framework) == FrameworkSupportStatus.OutOfSupport;
+        });
+        return outOfSupportProjects;
     }
 
     private static int CountLegacyProjectFiles(IReadOnlyList<SharpShift.Inventory.Core.Models.ProjectInventory> projects)
@@ -147,18 +151,27 @@ internal sealed class MarkdownReportWriter : IReportWriter
             [RiskSeverity.Low] = 0
         };
     }
+    
+    private static double ComputeTotalFindings(VulnerabilitySeverityCounts counts)
+    {
+        return counts.Critical + counts.High + counts.Medium + counts.Low;
+    }
+
+    private static double ComputeWeightedTotal(VulnerabilitySeverityCounts counts)
+    {
+        return (counts.Critical * CriticalRiskWeight) +
+               (counts.High * HighRiskWeight) +
+               (counts.Medium * MediumRiskWeight) +
+               (counts.Low * LowRiskWeight);
+    }
 
     private static double ComputeWeightedRiskScore(VulnerabilitySeverityCounts counts)
     {
-        var totalFindings = counts.Critical + counts.High + counts.Medium + counts.Low;
+        var totalFindings = ComputeTotalFindings(counts);
         if (totalFindings == 0)
             return 0;
 
-        var weightedTotal =
-            (counts.Critical * CriticalRiskWeight) +
-            (counts.High * HighRiskWeight) +
-            (counts.Medium * MediumRiskWeight) +
-            (counts.Low * LowRiskWeight);
+        var weightedTotal = ComputeWeightedTotal(counts);
 
         return Math.Round((double)weightedTotal / totalFindings, 2, MidpointRounding.AwayFromZero);
     }
@@ -184,7 +197,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         VulnerabilitySeverityCounts Vulnerabilities,
         int DeprecatedPackageFindings,
         double WeightedRiskScore,
-        int OutOfSupportFrameworkProjects,
+        IEnumerable<ProjectInventory> OutOfSupportFrameworkProjects,
         int LegacyProjectFiles);
 
     private enum FrameworkSupportStatus
@@ -342,6 +355,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
             var finding = findings[i];
             lines.Add($"### {i + 1}. {finding.PackageId}");
             lines.Add($"Affected Projects: {finding.AffectedProjects}");
+            lines.Add(string.Empty);
             lines.Add("Affected Versions:");
             if (finding.AffectedVersions.Count == 0)
                 lines.Add("- Unknown");
@@ -379,6 +393,8 @@ internal sealed class MarkdownReportWriter : IReportWriter
     private static void AddModernizationScorecardSection(List<string> lines, ModernizationScorecardData scorecard)
     {
         lines.Add("## Modernization Scorecard");
+        lines.Add(string.Empty);
+        lines.Add("The Modernization Scorecard provides a high-level overview of the health and modernization status of the analyzed solutions and projects. Each area is scored on a scale from 0 to 100, with higher scores indicating better health and modernization practices.");
         lines.Add(string.Empty);
         lines.Add("| Area | Score |");
         lines.Add("|---|---:|");
@@ -548,8 +564,10 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
         lines.Add("## Executive Risk Assessment");
         lines.Add(string.Empty);
+        lines.Add("Note: Analysis findings are currently aggregated at estate level and may include findings outside any single solution.");
+        lines.Add(string.Empty);
         lines.Add($"Overall Risk: {dashboard.OverallRisk}");
-        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore}");
+        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore} (Weighted total is {ComputeWeightedTotal(dashboard.Vulnerabilities)} across {ComputeTotalFindings(dashboard.Vulnerabilities)} findings)");
         lines.Add(string.Empty);
         lines.Add($"- Critical Vulnerabilities: {dashboard.Vulnerabilities.Critical}");
         lines.Add($"- High Vulnerabilities: {dashboard.Vulnerabilities.High}");
@@ -557,7 +575,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add($"- Low Vulnerabilities: {dashboard.Vulnerabilities.Low}");
         lines.Add(string.Empty);
         lines.Add($"- Deprecated Packages: {dashboard.DeprecatedPackageFindings}");
-        lines.Add($"- Out-of-Support Frameworks: {dashboard.OutOfSupportFrameworkProjects} projects");
+        lines.Add($"- Out-of-Support Frameworks: {dashboard.OutOfSupportFrameworkProjects.Count()} projects");
         lines.Add($"- Legacy Project Files: {dashboard.LegacyProjectFiles} projects");
         lines.Add($"- Solutions Not In Version Control: {data.Solutions.Count(s => string.IsNullOrWhiteSpace(s.RepositoryUrl))}");
         lines.Add(string.Empty);
@@ -566,7 +584,6 @@ internal sealed class MarkdownReportWriter : IReportWriter
         BuildRecommendedPriorities(lines, data.Analysis ?? new(), data.Solutions, projects);
         lines.Add(string.Empty);
         AddModernizationScorecardSection(lines, scorecard);
-        lines.Add("Note: Analysis findings are currently aggregated at estate level and may include findings outside this single solution.");
         lines.Add(string.Empty);
 
         AddTopFindingsSection(lines, topFindings);
@@ -620,6 +637,16 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add($"- Vulnerability findings: {vulnerableCount}");
         lines.Add(string.Empty);
 
+        lines.Add("# Appendix A");
+        lines.Add("## Out-of-Support Framework Projects");
+        lines.Add(string.Empty);
+        foreach (var project in dashboard.OutOfSupportFrameworkProjects.OrderBy(p => p.ProjectName, StringComparer.OrdinalIgnoreCase))
+        {
+            lines.Add($"- {project.ProjectName} ({project.Framework})");
+        }
+        lines.Add(string.Empty);
+
+        lines.Add("# Appendix B");
         lines.Add("## Solutions");
         lines.Add(string.Empty);
         foreach (var solution in data.Solutions.OrderBy(n => n.SolutionName, StringComparer.OrdinalIgnoreCase))
@@ -648,6 +675,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
             lines.Add(string.Empty);
         }
 
+        lines.Add("# Appendix C");
         lines.Add("## Dependency Summary");
         lines.Add(string.Empty);
         if (data.Analysis?.Dependencies.Count > 0)
@@ -731,7 +759,10 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
         lines.Add("## Executive Risk Assessment");
         lines.Add(string.Empty);
+        lines.Add("Note: Analysis findings are currently aggregated at estate level and may include findings outside this single solution.");
+        lines.Add(string.Empty);
         lines.Add($"Overall Risk: {dashboard.OverallRisk}");
+        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore} (Weighted total is {ComputeWeightedTotal(dashboard.Vulnerabilities)} across {ComputeTotalFindings(dashboard.Vulnerabilities)} findings)");
         lines.Add(string.Empty);
         lines.Add($"- Critical Vulnerabilities: {dashboard.Vulnerabilities.Critical}");
         lines.Add($"- High Vulnerabilities: {dashboard.Vulnerabilities.High}");
@@ -739,7 +770,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add($"- Low Vulnerabilities: {dashboard.Vulnerabilities.Low}");
         lines.Add(string.Empty);
         lines.Add($"- Deprecated Packages: {dashboard.DeprecatedPackageFindings}");
-        lines.Add($"- Out-of-Support Frameworks: {dashboard.OutOfSupportFrameworkProjects} projects");
+        lines.Add($"- Out-of-Support Frameworks: {dashboard.OutOfSupportFrameworkProjects.Count()} projects");
         lines.Add($"- Legacy Project Files: {dashboard.LegacyProjectFiles} projects");
         lines.Add($"- Solution In Version Control: {(string.IsNullOrWhiteSpace(solution.RepositoryUrl)? "No" : "Yes")}");
         lines.Add(string.Empty);
@@ -750,7 +781,6 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add(string.Empty);
 
         AddModernizationScorecardSection(lines, scorecard);
-        lines.Add("Note: Analysis findings are currently aggregated at estate level and may include findings outside this single solution.");
         lines.Add(string.Empty);
 
         AddTopFindingsSection(lines, topFindings);
@@ -787,7 +817,16 @@ internal sealed class MarkdownReportWriter : IReportWriter
             lines.Add($"- Global risk findings: {analysis.RiskFindings.Count}");
         }
 
-        lines.Add("## Projects Appendix");
+
+        lines.Add("## Appendix: Out-of-Support Framework Projects");
+        lines.Add(string.Empty);
+        foreach (var project in dashboard.OutOfSupportFrameworkProjects.OrderBy(p => p.ProjectName, StringComparer.OrdinalIgnoreCase))
+        {
+            lines.Add($"- {project.ProjectName} ({project.Framework})");
+        }
+        lines.Add(string.Empty);
+
+        lines.Add("## Appendix: Projects");
         lines.Add(string.Empty);
         lines.Add("| Project | Is SDK Style | Type | Framework | Is Legacy | Path | Dependencies | ");
         lines.Add("|---|---|---|---|---|---|---|");
@@ -825,7 +864,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
             if (vulnerablePackages > 0)
             {
-                lines.Add($"{recommendationCount}. Address packages with CRITICAL vulnerabilities: {vulnerablePackages}");
+                lines.Add($"{recommendationCount}. Address packages with critical vulnerabilities: {vulnerablePackages}");
                 recommendationCount++;
             }
 
@@ -836,7 +875,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
             if (vulnerablePackages > 0)
             {
-                lines.Add($"{recommendationCount}. Address packages with HIGH vulnerabilities: {vulnerablePackages}");
+                lines.Add($"{recommendationCount}. Address packages with high vulnerabilities: {vulnerablePackages}");
                 recommendationCount++;
             }
 
@@ -856,14 +895,18 @@ internal sealed class MarkdownReportWriter : IReportWriter
             .Count();
         if (outOfSupportProjects > 0)
         {
-            lines.Add($"{recommendationCount}. Upgrade out-of-support framework projects: {outOfSupportProjects}");
+            lines.Add($"{recommendationCount}. Upgrade Out-of-Support framework projects: {outOfSupportProjects}");
+            recommendationCount++;
         }
 
         var solutionsWithoutVersionControl = solutions
             .Where(p => string.IsNullOrWhiteSpace(p.RepositoryUrl))
             .Count();
         if (solutionsWithoutVersionControl > 0)
+        {
                 lines.Add($"{recommendationCount}. Add solutions to version control: {solutionsWithoutVersionControl}");
+                recommendationCount++;
+        }
 
         return lines;
     }
