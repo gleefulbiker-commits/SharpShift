@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using SharpShift.Inventory.Core.Models;
+using SharpShift.Inventory.Core.Utilities;
 
 namespace SharpShift.Inventory.Reporting;
 
@@ -10,12 +11,6 @@ namespace SharpShift.Inventory.Reporting;
 public class ReportGenerator
 {
     private readonly Dictionary<ReportFormat, IReportWriter> _writers;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = true,
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-    };
 
     public ReportGenerator(IEnumerable<IReportWriter>? writers = null)
     {
@@ -29,51 +24,11 @@ public class ReportGenerator
         _writers = registeredWriters.ToDictionary(w => w.Format, w => w);
     }
 
-    /// <summary>
-    /// Loads inventory and analysis data from JSON files.
-    /// </summary>
-    /// <param name="options">Report options containing input file details.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Loaded report data.</returns>
-    public async Task<ReportData> LoadDataFromJsonAsync(ReportOptions options, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-
-        var inputDirectory = string.IsNullOrWhiteSpace(options.InputDirectory)
-            ? Directory.GetCurrentDirectory()
-            : options.InputDirectory;
-
-        if (!Directory.Exists(inputDirectory))
-            throw new DirectoryNotFoundException($"Input directory not found: {inputDirectory}");
-
-        var inventoryFile = Path.Combine(inputDirectory, options.InventoryFileName);
-        if (!File.Exists(inventoryFile))
-            throw new FileNotFoundException("Inventory file not found.", inventoryFile);
-
-        await using var inventoryStream = File.OpenRead(inventoryFile);
-        var solutions = await JsonSerializer.DeserializeAsync<List<SolutionInventory>>(inventoryStream, JsonOptions, cancellationToken)
-            ?? [];
-
-        var analysisFile = Path.Combine(inputDirectory, options.AnalysisFileName);
-        ProjectAnalysisResult? analysis = null;
-        if (File.Exists(analysisFile))
-        {
-            await using var analysisStream = File.OpenRead(analysisFile);
-            analysis = await JsonSerializer.DeserializeAsync<ProjectAnalysisResult>(analysisStream, JsonOptions, cancellationToken);
-        }
-
-        return new ReportData
-        {
-            Solutions = solutions,
-            Analysis = analysis
-        };
-    }
-
     public async Task<ReportGenerationResult> GenerateAsync(ReportOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var reportData = await LoadDataFromJsonAsync(options, cancellationToken);
+        var reportData = await ReportDataUtils.CreateReportData(options, cancellationToken);
         var outputDirectory = string.IsNullOrWhiteSpace(options.OutputDirectory)
             ? (string.IsNullOrWhiteSpace(options.InputDirectory) ? Directory.GetCurrentDirectory() : options.InputDirectory)
             : options.OutputDirectory;

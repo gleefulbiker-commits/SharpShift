@@ -1,19 +1,11 @@
 using SharpShift.Inventory.Core.Models;
+using SharpShift.Inventory.Core.Utilities;
 using System.Xml.Linq;
 
 namespace SharpShift.Inventory.Reporting;
 
 internal sealed class MarkdownReportWriter : IReportWriter
 {
-    private const int CriticalRiskWeight = 10;
-    private const int HighRiskWeight = 6;
-    private const int MediumRiskWeight = 3;
-    private const int LowRiskWeight = 1;
-
-    private const double CriticalRiskThreshold = 8.0;
-    private const double HighRiskThreshold = 5.0;
-    private const double MediumRiskThreshold = 2.0;
-
     public ReportFormat Format => ReportFormat.Markdown;
 
     public async Task<IReadOnlyList<string>> WriteCombinedAsync(ReportData data, ReportOptions options, CancellationToken cancellationToken = default)
@@ -46,11 +38,11 @@ internal sealed class MarkdownReportWriter : IReportWriter
         return files;
     }
 
-    private static ExecutiveRiskAssessmentData BuildExecutiveRiskAssessmentData(
+    private static ReportDataUtils.ExecutiveRiskAssessmentData BuildExecutiveRiskAssessmentData(
         IReadOnlyList<SharpShift.Inventory.Core.Models.ProjectInventory> projects,
         SharpShift.Inventory.Core.Models.ProjectAnalysisResult? analysis)
     {
-        var severityCounts = InitializeSeverityCounts();
+        var severityCounts = ReportDataUtils.InitializeSeverityCounts();
         var deprecatedCount = 0;
 
         if (analysis?.RiskFindings.Count > 0)
@@ -58,7 +50,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
             foreach (var finding in analysis.RiskFindings)
             {
                 if (string.Equals(finding.Category, "Dependency.Vulnerability", StringComparison.OrdinalIgnoreCase)
-                    && severityCounts.ContainsKey(finding.Severity))
+                    && severityCounts.TryGetValue(finding.Severity, out var count))
                     severityCounts[finding.Severity]++;
 
                 if (string.Equals(finding.Category, "Dependency.Deprecated", StringComparison.OrdinalIgnoreCase))
@@ -72,12 +64,12 @@ internal sealed class MarkdownReportWriter : IReportWriter
             severityCounts[RiskSeverity.Medium],
             severityCounts[RiskSeverity.Low]);
 
-        var weightedScore = ComputeWeightedRiskScore(vulnerabilityCounts);
-        var overallRisk = GetOverallRiskLabel(weightedScore);
-        var outOfSupportFrameworkProjects = GetOutOfSupportFrameworkProjects(projects);
-        var legacyProjectFiles = CountLegacyProjectFiles(projects);
+        var weightedScore = ReportDataUtils.ComputeWeightedRiskScore(vulnerabilityCounts);
+        var overallRisk = ReportDataUtils.GetOverallRiskLabel(weightedScore);
+        var outOfSupportFrameworkProjects = ReportDataUtils.GetOutOfSupportFrameworkProjects(projects);
+        var legacyProjectFiles = ReportDataUtils.CountLegacyProjectFiles(projects);
 
-        return new ExecutiveRiskAssessmentData(
+        return new ReportDataUtils.ExecutiveRiskAssessmentData(
             overallRisk,
             vulnerabilityCounts,
             deprecatedCount,
@@ -86,151 +78,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
             legacyProjectFiles);
     }
 
-    private static IEnumerable<ProjectInventory> GetOutOfSupportFrameworkProjects(IReadOnlyList<SharpShift.Inventory.Core.Models.ProjectInventory> projects)
-    {
-        var outOfSupportProjects = projects.Where(project =>
-        {
-            return ClassifyFrameworkSupportStatus(project.Framework) == FrameworkSupportStatus.OutOfSupport;
-        });
-        return outOfSupportProjects;
-    }
-
-    private static int CountLegacyProjectFiles(IReadOnlyList<SharpShift.Inventory.Core.Models.ProjectInventory> projects)
-    {
-        var legacyCount = 0;
-
-        foreach (var project in projects)
-        {
-            if (project.IsLegacyProject)
-                legacyCount++;
-        }
-
-        return legacyCount;
-    }
-
-    private static FrameworkSupportStatus ClassifyFrameworkSupportStatus(string? framework)
-    {
-        if (string.IsNullOrWhiteSpace(framework))
-            return FrameworkSupportStatus.Unknown;
-
-        var value = framework.Trim();
-
-        if (value.StartsWith(".NET Framework", StringComparison.OrdinalIgnoreCase))
-            return FrameworkSupportStatus.OutOfSupport;
-
-        if (value.StartsWith(".NET Core", StringComparison.OrdinalIgnoreCase))
-            return FrameworkSupportStatus.OutOfSupport;
-
-        if (value.StartsWith(".NET Standard", StringComparison.OrdinalIgnoreCase))
-            return FrameworkSupportStatus.Unknown;
-
-        if (!value.StartsWith(".NET ", StringComparison.OrdinalIgnoreCase))
-            return FrameworkSupportStatus.Unknown;
-
-        var version = value[5..].Trim();
-        var majorToken = version.Split('.', StringSplitOptions.RemoveEmptyEntries)[0];
-        if (!int.TryParse(majorToken, out var major))
-            return FrameworkSupportStatus.Unknown;
-
-        if (major >= 8)
-            return FrameworkSupportStatus.Supported;
-
-        if (major == 7)
-            return FrameworkSupportStatus.NearEndOfSupport;
-
-        return FrameworkSupportStatus.OutOfSupport;
-    }
-
-    private static Dictionary<RiskSeverity, int> InitializeSeverityCounts()
-    {
-        return new Dictionary<RiskSeverity, int>
-        {
-            [RiskSeverity.Critical] = 0,
-            [RiskSeverity.High] = 0,
-            [RiskSeverity.Medium] = 0,
-            [RiskSeverity.Low] = 0
-        };
-    }
-    
-    private static double ComputeTotalFindings(VulnerabilitySeverityCounts counts)
-    {
-        return counts.Critical + counts.High + counts.Medium + counts.Low;
-    }
-
-    private static double ComputeWeightedTotal(VulnerabilitySeverityCounts counts)
-    {
-        return (counts.Critical * CriticalRiskWeight) +
-               (counts.High * HighRiskWeight) +
-               (counts.Medium * MediumRiskWeight) +
-               (counts.Low * LowRiskWeight);
-    }
-
-    private static double ComputeWeightedRiskScore(VulnerabilitySeverityCounts counts)
-    {
-        var totalFindings = ComputeTotalFindings(counts);
-        if (totalFindings == 0)
-            return 0;
-
-        var weightedTotal = ComputeWeightedTotal(counts);
-
-        return Math.Round((double)weightedTotal / totalFindings, 2, MidpointRounding.AwayFromZero);
-    }
-
-    private static string GetOverallRiskLabel(double weightedScore)
-    {
-        if (weightedScore >= CriticalRiskThreshold)
-            return "Critical";
-
-        if (weightedScore >= HighRiskThreshold)
-            return "High";
-
-        if (weightedScore >= MediumRiskThreshold)
-            return "Medium";
-
-        return "Low";
-    }
-
-    private readonly record struct VulnerabilitySeverityCounts(int Critical, int High, int Medium, int Low);
-
-    private readonly record struct ExecutiveRiskAssessmentData(
-        string OverallRisk,
-        VulnerabilitySeverityCounts Vulnerabilities,
-        int DeprecatedPackageFindings,
-        double WeightedRiskScore,
-        IEnumerable<ProjectInventory> OutOfSupportFrameworkProjects,
-        int LegacyProjectFiles);
-
-    private enum FrameworkSupportStatus
-    {
-        Unknown,
-        Supported,
-        NearEndOfSupport,
-        OutOfSupport
-    }
-
-    private sealed record TopFinding(
-        string PackageId,
-        int AffectedProjects,
-        IReadOnlyList<string> AffectedVersions,
-        IReadOnlyList<AdvisoryReference> Advisories,
-        IReadOnlyList<CategorySummary> Categories,
-        RiskSeverity HighestSeverity,
-        string Recommendation,
-        int RankScore);
-
-    private readonly record struct AdvisoryReference(string AdvisoryId, double? CvssScore);
-
-    private readonly record struct CategorySummary(string Category, int Count);
-
-    private readonly record struct ModernizationScorecardData(
-        int FrameworkCurrency,
-        int PackageHealth,
-        int SecurityPosture,
-        int DependencyHygiene,
-        int RepositoryModernity,
-        int OverallScore);
-
-    private static List<TopFinding> BuildTopFindings(IReadOnlyList<ProjectInventory> projects, ProjectAnalysisResult? analysis)
+    private static List<ReportDataUtils.TopFinding> BuildTopFindings(IReadOnlyList<ProjectInventory> projects, ProjectAnalysisResult? analysis)
     {
         if (analysis?.RiskFindings.Count is not > 0)
             return [];
@@ -277,14 +125,14 @@ internal sealed class MarkdownReportWriter : IReportWriter
 
                 var advisories = group
                     .Where(x => !string.IsNullOrWhiteSpace(x.AdvisoryId))
-                    .Select(x => new AdvisoryReference(x.AdvisoryId!, x.Finding.CvssScore))
+                    .Select(x => new ReportDataUtils.AdvisoryReference(x.AdvisoryId!, x.Finding.CvssScore))
                     .Distinct()
                     .OrderBy(a => a.AdvisoryId, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
                 var categories = group
                     .GroupBy(x => x.Finding.Category, StringComparer.OrdinalIgnoreCase)
-                    .Select(g => new CategorySummary(g.Key, g.Count()))
+                    .Select(g => new ReportDataUtils.CategorySummary(g.Key, g.Count()))
                     .OrderByDescending(x => x.Count)
                     .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -294,7 +142,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
                 var recommendation = BuildTopFindingRecommendation(group.Key, highestSeverity, versions);
                 var rankScore = (group.Count() * 2) + (int)highestSeverity * 3 + (affectedProjects * 2);
 
-                return new TopFinding(
+                return new ReportDataUtils.TopFinding(
                     group.Key,
                     affectedProjects,
                     versions,
@@ -310,35 +158,29 @@ internal sealed class MarkdownReportWriter : IReportWriter
             .Take(10)];
     }
 
-    private static ModernizationScorecardData BuildModernizationScorecard(
+    private static ReportDataUtils.ModernizationScorecardData BuildModernizationScorecard(
         IReadOnlyList<SolutionInventory> solutions,
         IReadOnlyList<ProjectInventory> projects,
         ProjectAnalysisResult? analysis)
     {
-        var frameworkCurrency = ComputeFrameworkCurrencyScore(projects);
-        var packageHealth = ComputePackageHealthScore(analysis);
-        var securityPosture = ComputeSecurityPostureScore(analysis);
-        var dependencyHygiene = ComputeDependencyHygieneScore(projects, analysis);
-        var repositoryModernity = ComputeRepositoryModernityScore(solutions, projects);
 
-        var overall = (int)Math.Round(
-            (frameworkCurrency * 0.25) +
-            (packageHealth * 0.20) +
-            (securityPosture * 0.25) +
-            (dependencyHygiene * 0.15) +
-            (repositoryModernity * 0.15),
-            MidpointRounding.AwayFromZero);
+        var frameworkCurrency = ReportDataUtils.ClampScore(ReportDataUtils.ComputeFrameworkCurrencyScore(projects));
+        var packageHealth = ReportDataUtils.ClampScore(ReportDataUtils.ComputePackageHealthScore(analysis));
+        var securityPosture = ReportDataUtils.ClampScore(ReportDataUtils.ComputeSecurityPostureScore(analysis));
+        var dependencyHygiene = ReportDataUtils.ClampScore(ReportDataUtils.ComputeDependencyHygieneScore(projects, analysis));
+        var repositoryModernity = ReportDataUtils.ClampScore(ReportDataUtils.ComputeRepositoryModernityScore(solutions, projects));
+        var overallScore = ReportDataUtils.ClampScore(ReportDataUtils.ComputeOverallModernizationScore(frameworkCurrency, packageHealth, securityPosture, dependencyHygiene, repositoryModernity));
 
-        return new ModernizationScorecardData(
-            ClampScore(frameworkCurrency),
-            ClampScore(packageHealth),
-            ClampScore(securityPosture),
-            ClampScore(dependencyHygiene),
-            ClampScore(repositoryModernity),
-            ClampScore(overall));
+        return new ReportDataUtils.ModernizationScorecardData(
+            frameworkCurrency,
+            packageHealth,
+            securityPosture,
+            dependencyHygiene,
+            repositoryModernity,
+            overallScore);
     }
 
-    private static void AddTopFindingsSection(List<string> lines, IReadOnlyList<TopFinding> findings)
+    private static void AddTopFindingsSection(List<string> lines, List<ReportDataUtils.TopFinding> findings)
     {
         lines.Add("## Top Findings");
         lines.Add(string.Empty);
@@ -390,7 +232,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         }
     }
 
-    private static void AddModernizationScorecardSection(List<string> lines, ModernizationScorecardData scorecard)
+    private static void AddModernizationScorecardSection(List<string> lines, ReportDataUtils.ModernizationScorecardData scorecard)
     {
         lines.Add("## Modernization Scorecard");
         lines.Add(string.Empty);
@@ -456,88 +298,6 @@ internal sealed class MarkdownReportWriter : IReportWriter
         return evidence.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
     }
 
-    private static int ComputeFrameworkCurrencyScore(IReadOnlyList<ProjectInventory> projects)
-    {
-        if (projects.Count == 0)
-            return 100;
-
-        var weighted = projects.Sum(project => ClassifyFrameworkSupportStatus(project.Framework) switch
-        {
-            FrameworkSupportStatus.Supported => 1.0,
-            FrameworkSupportStatus.NearEndOfSupport => 0.6,
-            FrameworkSupportStatus.OutOfSupport => 0.0,
-            _ => 0.5
-        });
-
-        return (int)Math.Round((weighted / projects.Count) * 100, MidpointRounding.AwayFromZero);
-    }
-
-    private static int ComputePackageHealthScore(ProjectAnalysisResult? analysis)
-    {
-        if (analysis is null)
-            return 100;
-
-        var deprecatedCount = analysis.RiskFindings.Count(r => string.Equals(r.Category, "Dependency.Deprecated", StringComparison.OrdinalIgnoreCase));
-        var vulnerabilities = analysis.RiskFindings.Count(r => string.Equals(r.Category, "Dependency.Vulnerability", StringComparison.OrdinalIgnoreCase));
-
-        return ClampScore(100 - (deprecatedCount * 5) - (vulnerabilities * 3));
-    }
-
-    private static int ComputeSecurityPostureScore(ProjectAnalysisResult? analysis)
-    {
-        if (analysis is null)
-            return 100;
-
-        var penalty = analysis.RiskFindings
-            .Where(r => string.Equals(r.Category, "Dependency.Vulnerability", StringComparison.OrdinalIgnoreCase))
-            .Sum(r => r.Severity switch
-            {
-                RiskSeverity.Critical => 15,
-                RiskSeverity.High => 10,
-                RiskSeverity.Medium => 6,
-                _ => 3
-            });
-
-        return ClampScore(100 - penalty);
-    }
-
-    private static int ComputeDependencyHygieneScore(IReadOnlyList<ProjectInventory> projects, ProjectAnalysisResult? analysis)
-    {
-        var consistencyScore = 100;
-        if (analysis?.Dependencies.Count > 0)
-        {
-            var multiVersion = analysis.Dependencies.Values.Count(d => d.Version is { Count: > 1 });
-            consistencyScore = ClampScore(100 - (multiVersion * 4));
-        }
-
-        if (projects.Count == 0)
-            return consistencyScore;
-
-        var sdkStyleProjects = projects.Count(p => !p.IsLegacyProject);
-        var sdkStyleScore = (int)Math.Round((double)sdkStyleProjects / projects.Count * 100, MidpointRounding.AwayFromZero);
-
-        return ClampScore((consistencyScore + sdkStyleScore) / 2);
-    }
-
-    private static int ComputeRepositoryModernityScore(IReadOnlyList<SolutionInventory> solutions, IReadOnlyList<ProjectInventory> projects)
-    {
-        if (solutions.Count == 0)
-            return 100;
-
-        var sourceControlScore = (int)Math.Round(
-            (double)solutions.Count(s => !string.IsNullOrWhiteSpace(s.RepositoryUrl) && !s.IsArchived) / solutions.Count * 100,
-            MidpointRounding.AwayFromZero);
-
-        if (projects.Count == 0)
-            return sourceControlScore;
-
-        var modernProjectFiles = projects.Count(p => !p.IsLegacyProject);
-        var projectFileScore = (int)Math.Round((double)modernProjectFiles / projects.Count * 100, MidpointRounding.AwayFromZero);
-
-        return ClampScore((sourceControlScore + projectFileScore) / 2);
-    }
-
-    private static int ClampScore(int value) => Math.Max(0, Math.Min(100, value));
 
     private static string BuildCombinedMarkdown(ReportData data)
     {
@@ -567,7 +327,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add("Note: Analysis findings are currently aggregated at estate level and may include findings outside any single solution.");
         lines.Add(string.Empty);
         lines.Add($"Overall Risk: {dashboard.OverallRisk}");
-        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore} (Weighted total is {ComputeWeightedTotal(dashboard.Vulnerabilities)} across {ComputeTotalFindings(dashboard.Vulnerabilities)} findings)");
+        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore} (Weighted total is {ReportDataUtils.ComputeWeightedTotal(dashboard.Vulnerabilities)} across {ReportDataUtils.ComputeTotalFindings(dashboard.Vulnerabilities)} findings)");
         lines.Add(string.Empty);
         lines.Add($"- Critical Vulnerabilities: {dashboard.Vulnerabilities.Critical}");
         lines.Add($"- High Vulnerabilities: {dashboard.Vulnerabilities.High}");
@@ -698,9 +458,8 @@ internal sealed class MarkdownReportWriter : IReportWriter
         }
         lines.Add(string.Empty);
 
-        AddTopFindingsSection(lines, topFindings);
-
-        lines.Add("## Risk Findings");
+        lines.Add("# Appendix D");
+        lines.Add("## Risk Findings Details");
         lines.Add(string.Empty);
         if (data.Analysis?.RiskFindings.Count > 0)
         {
@@ -715,6 +474,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         {
             lines.Add("No risk findings available.");
         }
+        lines.Add(string.Empty);
 
         return string.Join(Environment.NewLine, lines) + Environment.NewLine;
     }
@@ -762,7 +522,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         lines.Add("Note: Analysis findings are currently aggregated at estate level and may include findings outside this single solution.");
         lines.Add(string.Empty);
         lines.Add($"Overall Risk: {dashboard.OverallRisk}");
-        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore} (Weighted total is {ComputeWeightedTotal(dashboard.Vulnerabilities)} across {ComputeTotalFindings(dashboard.Vulnerabilities)} findings)");
+        lines.Add($"- Weighted Risk Score: {dashboard.WeightedRiskScore} (Weighted total is {ReportDataUtils.ComputeWeightedTotal(dashboard.Vulnerabilities)} across {ReportDataUtils.ComputeTotalFindings(dashboard.Vulnerabilities)} findings)");
         lines.Add(string.Empty);
         lines.Add($"- Critical Vulnerabilities: {dashboard.Vulnerabilities.Critical}");
         lines.Add($"- High Vulnerabilities: {dashboard.Vulnerabilities.High}");
@@ -891,7 +651,7 @@ internal sealed class MarkdownReportWriter : IReportWriter
         }
 
         var outOfSupportProjects = projects
-            .Where(p => ClassifyFrameworkSupportStatus(p.Framework) == FrameworkSupportStatus.OutOfSupport)
+            .Where(p => ReportDataUtils.ClassifyFrameworkSupportStatus(p.Framework) == FrameworkSupportStatus.OutOfSupport)
             .Count();
         if (outOfSupportProjects > 0)
         {

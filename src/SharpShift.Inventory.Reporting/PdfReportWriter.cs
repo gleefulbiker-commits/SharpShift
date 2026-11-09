@@ -1,3 +1,5 @@
+using SharpShift.Inventory.Core.Models;
+
 namespace SharpShift.Inventory.Reporting;
 
 internal sealed class PdfReportWriter : IReportWriter
