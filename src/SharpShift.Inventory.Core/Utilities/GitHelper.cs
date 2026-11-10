@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using Microsoft.Extensions.Logging;
+using SharpShift.LoggerMessages;
 
 namespace SharpShift.Inventory.Core.Utilities
 {
@@ -72,7 +73,12 @@ namespace SharpShift.Inventory.Core.Utilities
             return (process.ExitCode, stdOut.Trim(), stdErr.Trim());
         }
 
-        public static bool TryClone(string repoUrl, string targetDir, int depth = UpgradeConfig.DefaultCloneDepth, int timeoutMs = UpgradeConfig.DefaultCloneTimeoutMs, ILogger? logger = null)
+        public static async Task<bool> TryClone(
+            string repoUrl,
+            string targetDir,
+            int depth = UpgradeConfig.DefaultCloneDepth,
+            int timeoutMs = UpgradeConfig.DefaultCloneTimeoutMs,
+            ILogger? logger = null)
         {
             try
             {
@@ -82,17 +88,13 @@ namespace SharpShift.Inventory.Core.Utilities
                     return false;
                 }
 
-                var parent = Path.GetDirectoryName(targetDir);
-                if (!string.IsNullOrWhiteSpace(parent) && !Directory.Exists(parent))
-                    Directory.CreateDirectory(parent);
-
                 if(logger is not null)
                 {
-                    logger.LogInformation("Starting git clone operation.");
-                    logger.LogInformation("Repository URL: {RepoUrl}", repoUrl);
-                    logger.LogInformation("Target Directory: {TargetDir}", targetDir);
-                    logger.LogInformation("Clone Depth: {Depth}", depth);
-                    logger.LogInformation("Timeout (ms): {TimeoutMs}", timeoutMs);
+                    LogMessages.StartingGitCloneOperation(logger);
+                    LogMessages.GitCloneRepositoryUrl(logger, repoUrl);
+                    LogMessages.GitCloneTargetDirectory(logger, targetDir);
+                    LogMessages.GitCloneDepth(logger, depth);
+                    LogMessages.GitCloneTimeout(logger, timeoutMs);
                 }
                 var args = $"clone --depth {depth} {repoUrl} \"{targetDir}\"";
                 var psi = new ProcessStartInfo("git", args)
@@ -110,8 +112,8 @@ namespace SharpShift.Inventory.Core.Utilities
                     return false;
                 }
 
-                var completed = proc.WaitForExit(timeoutMs);
-                if (!completed)
+                await proc.WaitForExitAsync(CancellationToken.None);
+                if (!proc.HasExited)
                 {
                     try { proc.Kill(); }
                     catch (Exception ex)
@@ -124,7 +126,8 @@ namespace SharpShift.Inventory.Core.Utilities
 
                 if (proc.ExitCode != 0)
                 {
-                    logger?.LogWarning("Git clone failed for {RepoUrl} with exit code {ExitCode}", repoUrl, proc.ExitCode);
+                    var errorOutput = await proc.StandardError.ReadToEndAsync();
+                    logger?.LogWarning("Git clone failed for {RepoUrl} with exit code {ExitCode}. Error: {ErrorOutput}", repoUrl, proc.ExitCode, errorOutput);
                 }
 
                 return proc.ExitCode == 0 && Directory.Exists(targetDir);
@@ -134,6 +137,17 @@ namespace SharpShift.Inventory.Core.Utilities
                 logger?.LogError(ex, "Unexpected error while cloning repository {RepoUrl}", repoUrl);
                 return false;
             }
+        }
+
+        public static string GetRepoNameFromUrl(string url)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(url, nameof(url));
+
+            var segments = url.TrimEnd('/').Split('/');
+            var repoName = segments[^1];
+            if (repoName.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+                repoName = repoName[..^4];
+            return repoName;
         }
     }
 }

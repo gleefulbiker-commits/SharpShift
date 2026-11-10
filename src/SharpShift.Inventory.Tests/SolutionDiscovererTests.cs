@@ -26,7 +26,7 @@ namespace SharpShift.Inventory.Tests
                 File.WriteAllText(s2, "\n");
 
                 var disc = new FileSystemSolutionDiscoverer(NullLogger<FileSystemSolutionDiscoverer>.Instance);
-                var sols = (await disc.DiscoverSolutionsAsync(temp)).ToList();
+                var sols = (await disc.DiscoverSolutionsAsync(temp, string.Empty)).ToList();
 
                 // Ensure entries are structured (not plain strings) and have LocalPath populated
                 Assert.IsTrue(sols.All(s => s.LocalPath is not null));

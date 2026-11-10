@@ -14,7 +14,7 @@ namespace SharpShift.Inventory.Discovery
     /// </summary>
     public class FileSystemSolutionDiscoverer(ILogger? logger) : ISolutionDiscoverer
     {
-        public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath)
+        public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath, string? gitUrlsPath)
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(rootPath, $"File system discovery skipped because root path is empty or missing: {rootPath}");
             ArgumentNullException.ThrowIfNull(logger, $"File system discovery skipped because logger is null.");

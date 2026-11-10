@@ -18,23 +18,25 @@ namespace SharpShift.Inventory.Discovery
         private readonly ILogger? _logger;
         private readonly FileSystemSolutionDiscoverer _fsDiscoverer;
         private readonly GitHubSolutionDiscoverer _ghDiscoverer;
+        private readonly GitSolutionDiscoverer _gitDiscoverer;
 
         public SolutionDiscoverer()
-            : this(NullLogger.Instance, null)
+            : this(NullLogger.Instance)
         {
         }
 
-        public SolutionDiscoverer(ILogger? logger, ILoggerFactory? loggerFactory)
+        public SolutionDiscoverer(ILogger? logger)
         {
             _logger = logger;
             _fsDiscoverer = new FileSystemSolutionDiscoverer(logger);
             // Create GitHub discoverer with default HttpClient.
             var http = new System.Net.Http.HttpClient();
             _ghDiscoverer = new GitHubSolutionDiscoverer(http, logger);
+            _gitDiscoverer = new GitSolutionDiscoverer(logger); 
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath)
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath, string? gitUrlsPath)
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(rootPath, $"Solution discovery skipped because root path is empty or missing: {rootPath}");
             ArgumentNullException.ThrowIfNull(_logger, $"Solution discovery skipped because logger is null.");
@@ -42,15 +44,21 @@ namespace SharpShift.Inventory.Discovery
             LogMessages.StartingSolutionDiscovery(_logger, rootPath);
             var results = new List<SolutionDiscoveryEntry>();
 
-            var fs = await _fsDiscoverer.DiscoverSolutionsAsync(rootPath);
+            var fs = await _fsDiscoverer.DiscoverSolutionsAsync(rootPath, gitUrlsPath);
             if (fs is not null)
                 results.AddRange(fs);
+            LogMessages.FileSystemDiscoveryCompleted(_logger, results.Count);
 
-            var gh = await _ghDiscoverer.DiscoverSolutionsAsync(rootPath);
+            var gh = await _ghDiscoverer.DiscoverSolutionsAsync(rootPath, gitUrlsPath);
             if (gh is not null)
                 results.AddRange(gh);
+           LogMessages.GitHubDiscoveryCompleted(_logger, results.Count);
 
-            LogMessages.GitHubDiscoveryCompleted(_logger, results.Count);
+            var git = await _gitDiscoverer.DiscoverSolutionsAsync(rootPath, gitUrlsPath);
+            if (git is not null)
+                results.AddRange(git);
+            LogMessages.GitDiscoveryCompleted(_logger, results.Count);
+
 
             return results;
         }

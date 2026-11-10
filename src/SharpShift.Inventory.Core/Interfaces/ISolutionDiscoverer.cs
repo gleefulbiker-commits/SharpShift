@@ -13,7 +13,8 @@ namespace SharpShift.Inventory.Core.Interfaces
         /// Enumerates discovered solutions and repositories under the provided root path or configured sources.
         /// </summary>
         /// <param name="rootPath">Root folder to search (may be unused by remote discoverers).</param>
+        /// <param name="gitUrlsPath">Path to a file containing Git URLs to discover (may be unused by local discoverers).</param>
         /// <returns>List of discovery entries describing local solution files or remote repositories.</returns>
-        Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null);
+        Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null);
     }
 }

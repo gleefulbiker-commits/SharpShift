@@ -17,6 +17,8 @@
 
         public bool GeneratePerSolution { get; set; } = true;
 
+        public string GitUrlsPath { get; set; } = string.Empty;
+
         public ReportFormat Format { get; set; } = ReportFormat.Markdown;
     }
 }

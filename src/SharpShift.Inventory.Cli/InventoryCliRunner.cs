@@ -27,6 +27,7 @@ namespace SharpShift.Inventory.Cli
         public static async Task<int> RunAsync(
             ILogger logger,
             string rootPath,
+            string gitUrlsPath,
             string outputFile,
             ISolutionDiscoverer? solutionDiscoverer = null,
             int retryAttempts = 0,
@@ -50,9 +51,10 @@ namespace SharpShift.Inventory.Cli
                     throw new ArgumentNullException(nameof(solutionDiscoverer), "Solution discoverer is required.");
                 }
 
-                var discoveryEntries = (await solutionDiscoverer.DiscoverSolutionsAsync(rootPath)).ToList();
+                var discoveryEntries = (await solutionDiscoverer.DiscoverSolutionsAsync(rootPath, gitUrlsPath)).ToList();
                 var fileSystemEntries = GetFileSystemEntries(discoveryEntries).ToList();
-                var remoteEntries = GetRemoteRepoEntries(discoveryEntries).ToList();
+                var gitHubEntries = GetGitHubRepoEntries(discoveryEntries).ToList();
+                var otherGitEntries = GetOtherGitRepoEntries(discoveryEntries).ToList();
                 var evaluatedSolutionPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 await EvaluateAndAppendSolutions(
@@ -61,7 +63,7 @@ namespace SharpShift.Inventory.Cli
                     allSolutions,
                     evaluatedSolutionPaths);
 
-                var cloneRoots = ResolveCloneRootsSequential(remoteEntries, logger);
+                var cloneRoots = ResolveCloneRootsSequential(gitHubEntries.Concat(otherGitEntries), logger);
                 var clonedSolutionFiles = DiscoverSolutionFilesUnderRoots(cloneRoots, logger);
                 await EvaluateAndAppendSolutions(logger, clonedSolutionFiles, allSolutions, evaluatedSolutionPaths);
 
@@ -104,10 +106,17 @@ namespace SharpShift.Inventory.Cli
                 && !string.IsNullOrWhiteSpace(entry.LocalPath));
         }
 
-        private static IEnumerable<SolutionDiscoveryEntry> GetRemoteRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
+        private static IEnumerable<SolutionDiscoveryEntry> GetGitHubRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
         {
             return entries.Where(entry =>
                 string.Equals(entry.Source, "GitHub", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(entry.RepoUrl));
+        }
+
+        private static IEnumerable<SolutionDiscoveryEntry> GetOtherGitRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
+        {
+            return entries.Where(entry =>
+                string.Equals(entry.Source, "Git", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(entry.RepoUrl));
         }
 

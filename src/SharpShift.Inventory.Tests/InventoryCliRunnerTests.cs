@@ -19,7 +19,7 @@ namespace SharpShift.Inventory.Tests
         {
             private readonly IEnumerable<SolutionDiscoveryEntry> _entries = entries;
 
-            public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null)
+            public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null)
             {
                 return Task.FromResult(_entries);
             }
@@ -50,16 +50,17 @@ namespace SharpShift.Inventory.Tests
                 var clonedSlnx = Path.Combine(nested, "RepoNested.slnx");
                 File.WriteAllText(clonedSlnx, "<Solution><Project Path=\"Missing.csproj\" /></Solution>");
 
-                var discoverer = new FakeSolutionDiscoverer(new[]
-                {
+                var discoverer = new FakeSolutionDiscoverer(
+                [
                     new SolutionDiscoveryEntry { Source = "FileSystem", LocalPath = localSolution },
                     new SolutionDiscoveryEntry { Source = "GitHub", RepoUrl = "https://github.com/owner1/repo1", Owner = "owner1", RepoName = "repo1", IsArchived = false }
-                });
+                ]);
 
                 var exitCode = await InventoryCliRunner.RunAsync(
                     NullLogger.Instance,
                     temp,
                     "inventory.json",
+                    string.Empty,
                     discoverer,
                     retryAttempts: 0,
                     clean: false);
@@ -94,8 +95,8 @@ namespace SharpShift.Inventory.Tests
                 var cloneBase = Path.Combine(temp, "clones");
                 Environment.SetEnvironmentVariable(UpgradeConfig.GithubClonePathEnv, cloneBase);
 
-                var discoverer = new FakeSolutionDiscoverer(new[]
-                {
+                var discoverer = new FakeSolutionDiscoverer(
+                [
                     new SolutionDiscoveryEntry
                     {
                         Source = "GitHub",
@@ -104,12 +105,13 @@ namespace SharpShift.Inventory.Tests
                         RepoName = "repo2",
                         IsArchived = true
                     }
-                });
+                ]);
 
                 var exitCode = await InventoryCliRunner.RunAsync(
                     NullLogger.Instance,
                     temp,
                     "inventory.json",
+                    string.Empty,
                     discoverer,
                     retryAttempts: 0,
                     clean: false);
@@ -141,8 +143,8 @@ namespace SharpShift.Inventory.Tests
                 var sharedSolution = Path.Combine(cloneRoot, "Shared.sln");
                 File.WriteAllText(sharedSolution, "Microsoft Visual Studio Solution File, Format Version 12.00");
 
-                var discoverer = new FakeSolutionDiscoverer(new[]
-                {
+                var discoverer = new FakeSolutionDiscoverer(
+                [
                     new SolutionDiscoveryEntry { Source = "FileSystem", LocalPath = sharedSolution },
                     new SolutionDiscoveryEntry
                     {
@@ -153,12 +155,13 @@ namespace SharpShift.Inventory.Tests
                         IsArchived = false,
                         LocalPath = cloneRoot
                     }
-                });
+                ]);
 
                 var exitCode = await InventoryCliRunner.RunAsync(
                     NullLogger.Instance,
                     temp,
                     "inventory.json",
+                    string.Empty, 
                     discoverer,
                     retryAttempts: 0,
                     clean: false);

@@ -37,7 +37,7 @@ namespace SharpShift.Inventory.Discovery
             }
         }
 
-        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null)
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null)
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(rootPath, $"GitHub discovery skipped because root path is empty or missing: {rootPath}");
             ArgumentNullException.ThrowIfNull(_logger, $"GitHub discovery skipped because logger is null.");
@@ -55,13 +55,13 @@ namespace SharpShift.Inventory.Discovery
 
             foreach (var account in accounts)
             {
-                LogMessages.DiscoveringRepositoriesForGitHubAccount(_logger ?? throw new ArgumentNullException(nameof(_logger)), account);
+                LogMessages.DiscoveringRepositoriesForGitHubAccount(_logger!, account);
                 var list = await ListReposForAccount(account);
                 if (list != null)
                     results.AddRange(list);
             }
 
-            LogMessages.GitHubDiscoveryCompleted(_logger ?? throw new ArgumentNullException(nameof(_logger)), results.Count);
+            LogMessages.GitHubDiscoveryCompleted(_logger!, results.Count);
 
             return results;
         }

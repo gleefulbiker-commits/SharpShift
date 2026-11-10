@@ -8,8 +8,6 @@ namespace SharpShift.LoggerMessages
         [LoggerMessage(EventId = 1000, Level = LogLevel.Information, Message = "Starting solution scan for '{Path}' with output '{OutputFile}'")]
         public static partial void StartingSolutionScan(ILogger logger, string path, string outputFile);
 
-
-
         // Solution discovery messages
         [LoggerMessage(EventId = 2000, Level = LogLevel.Information, Message = "Evaluating .slnx solution properties for {SolutionPath}")]
         public static partial void EvaluatingSolutionProperties(ILogger logger, string solutionPath);
@@ -19,6 +17,19 @@ namespace SharpShift.LoggerMessages
 
         [LoggerMessage(EventId = 2005, Level = LogLevel.Information, Message = "Discovered {SolutionCount} local solution files under {RootPath}")]
         public static partial void DiscoveredLocalSolutionFiles(ILogger logger, int solutionCount, string rootPath);
+
+        [LoggerMessage(EventId = 2006, Level = LogLevel.Information, Message = "Discovered Git URL: {url}")]
+        public static partial void DiscoveredGitUrl(ILogger logger, string url);
+
+        [LoggerMessage(EventId = 2007, Level = LogLevel.Information, Message = "Git URLs file found: {gitUrlsPath}")]
+        public static partial void GitUrlsFileFound(ILogger logger, string gitUrlsPath);
+
+        [LoggerMessage(EventId = 2008, Level = LogLevel.Warning, Message = "Git URLs file does not exist: {gitUrlsPath}")]
+        public static partial void GitUrlsFileNotFound(ILogger logger, string gitUrlsPath);
+
+        // Handle failed clone
+        [LoggerMessage(EventId = 2009, Level = LogLevel.Error, Message = "Failed to clone repository {RepoUrl} into {TargetDirectory}")]
+        public static partial void FailedToCloneRepository(ILogger logger, string repoUrl, string targetDirectory);
 
         // Writing inventory messages
         [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "Writing inventory to '{OutputFile}'")]
@@ -66,6 +77,27 @@ namespace SharpShift.LoggerMessages
 
         [LoggerMessage(EventId = 5009, Level = LogLevel.Debug, Message = "Skipping duplicate solution evaluation for {SolutionPath}")]
         public static partial void SkippingDuplicateSolutionEvaluation(ILogger logger, string solutionPath);
+
+        [LoggerMessage(EventId = 5010, Level = LogLevel.Information, Message = "Starting git clone operation.")]
+        public static partial void StartingGitCloneOperation(ILogger logger);
+
+        [LoggerMessage(EventId = 5011, Level = LogLevel.Information, Message = "Repository URL: {RepoUrl}")]
+        public static partial void GitCloneRepositoryUrl(ILogger logger, string repoUrl);
+
+        [LoggerMessage(EventId = 5012, Level = LogLevel.Information, Message = "Target Directory: {TargetDir}")]
+        public static partial void GitCloneTargetDirectory(ILogger logger, string targetDir);
+
+        [LoggerMessage(EventId = 5013, Level = LogLevel.Information, Message = "Clone Depth: {Depth}")]
+        public static partial void GitCloneDepth(ILogger logger, int depth);
+
+        [LoggerMessage(EventId = 5014, Level = LogLevel.Information, Message = "Timeout (ms): {TimeoutMs}")]
+        public static partial void GitCloneTimeout(ILogger logger, int timeoutMs);
+
+        [LoggerMessage(EventId = 5016, Level = LogLevel.Information, Message = "Git discovery completed. Discovered {SolutionCount} solutions.")]
+        public static partial void GitDiscoveryCompleted(ILogger logger, int solutionCount);
+
+        [LoggerMessage(EventId = 5017, Level = LogLevel.Information, Message = "File system discovery completed. Discovered {SolutionCount} solutions.")]
+        public static partial void FileSystemDiscoveryCompleted(ILogger logger, int solutionCount);
 
         //Project analysis messages
         [LoggerMessage(EventId = 2002, Level = LogLevel.Warning, Message = "Project path '{ProjectPath}' is invalid.")]
