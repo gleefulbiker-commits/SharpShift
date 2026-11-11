@@ -1,16 +1,65 @@
-﻿using SharpShift.Inventory.Core.Interfaces;
+﻿using Microsoft.Extensions.Logging;
+using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
+using SharpShift.Inventory.Core.Utilities;
+using SharpShift.LoggerMessages;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace SharpShift.Inventory.Discovery
 {
-    public class TfvcSolutionDiscoverer : ISolutionDiscoverer
+    public class TfvcSolutionDiscoverer(ILogger? logger) : ISolutionDiscoverer
     {
-        public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null)
+        public const int DefaultGitCloneTimeoutSeconds = 600000;
+        public const int DefaultGitCloneDepth = 1;
+
+        public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath)
         {
             throw new NotImplementedException();
+        }
+
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath, string? gitUrlsPath, string? tfvcUrlsPath)
+        {
+            var results = new List<SolutionDiscoveryEntry>();
+
+            if (string.IsNullOrWhiteSpace(tfvcUrlsPath))
+            {
+                logger!.LogInformation("TFVC URLs path is null or empty.");
+            }
+            else if (!System.IO.File.Exists(tfvcUrlsPath))
+            {
+                logger!.LogWarning("TFVC URLs file does not exist: {tfvcUrlsPath}", tfvcUrlsPath);
+            }
+            else
+            {
+                LogMessages.TfvcUrlsFileFound(logger!, tfvcUrlsPath);
+                var tfvcFolders = File.ReadAllLines(tfvcUrlsPath);
+                var tfvcPath = Path.GetDirectoryName(tfvcUrlsPath) ?? string.Empty;
+
+                foreach (var folder in tfvcFolders)
+                {
+                    LogMessages.DiscoveredTfvcUrl(logger!, folder);
+                    if(TfvcHelper.IsTfvcMapped(folder, out var mappedRoot))
+                    {
+                        var repoDetails = await TfvcHelper.GetSolutionsInTfvcWorkspace(mappedRoot!);
+                        results.AddRange(repoDetails);
+                    }
+                    //var repoName = repoDetails.RepoUrl;
+                    //var isSuccess = await GitHelper.TryClone(url, Path.Combine(clonePath, repoName), DefaultGitCloneDepth, DefaultGitCloneTimeoutSeconds, logger);
+                    //if (isSuccess)
+                    //{
+                    //    LogMessages.RepositoryCloneResolved(logger!, url, Path.Combine(clonePath, repoName));
+                    //    results.Add(new SolutionDiscoveryEntry { Source = "Git", LocalPath = Path.Combine(clonePath, repoName), RepoUrl = url });
+                    //}
+                    //else
+                    //{
+                    //    LogMessages.FailedToCloneRepository(logger!, url, Path.Combine(clonePath, repoName));
+                    //}
+                }
+            }
+
+            return results;
         }
     }
 }

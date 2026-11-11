@@ -14,7 +14,8 @@ namespace SharpShift.Inventory.Core.Interfaces
         /// </summary>
         /// <param name="rootPath">Root folder to search (may be unused by remote discoverers).</param>
         /// <param name="gitUrlsPath">Path to a file containing Git URLs to discover (may be unused by local discoverers).</param>
+        /// <param name="tfvcUrlsPath">Path to a file containing TFVC URLs to discover (may be unused by local discoverers).</param>
         /// <returns>List of discovery entries describing local solution files or remote repositories.</returns>
-        Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null);
+        Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null, string? tfvcUrlsPath = null);
     }
 }

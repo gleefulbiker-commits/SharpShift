@@ -15,11 +15,11 @@ namespace SharpShift.Inventory.Tests
 {
     public class InventoryCliRunnerTests
     {
-        private sealed class FakeSolutionDiscoverer(IEnumerable<SolutionDiscoveryEntry> entries) : ISolutionDiscoverer
+        private sealed class FakeSolutionDiscoverer(IEnumerable<SolutionDiscoveryEntry> entries) :  ISolutionDiscoverer
         {
             private readonly IEnumerable<SolutionDiscoveryEntry> _entries = entries;
 
-            public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null)
+            public Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null, string? tfvcUrlsPath = null)
             {
                 return Task.FromResult(_entries);
             }
@@ -53,14 +53,20 @@ namespace SharpShift.Inventory.Tests
                 var discoverer = new FakeSolutionDiscoverer(
                 [
                     new SolutionDiscoveryEntry { Source = "FileSystem", LocalPath = localSolution },
-                    new SolutionDiscoveryEntry { Source = "GitHub", RepoUrl = "https://github.com/owner1/repo1", Owner = "owner1", RepoName = "repo1", IsArchived = false }
+                    new SolutionDiscoveryEntry { 
+                        Source = "GitHub",
+                        RepoUrl = "https://github.com/owner1/repo1",
+                        Owner = "owner1",
+                        RepoName = "repo1",
+                        IsArchived = false }
                 ]);
 
                 var exitCode = await InventoryCliRunner.RunAsync(
                     NullLogger.Instance,
                     temp,
-                    "inventory.json",
                     string.Empty,
+                    string.Empty,
+                    "inventory.json",
                     discoverer,
                     retryAttempts: 0,
                     clean: false);
@@ -110,8 +116,9 @@ namespace SharpShift.Inventory.Tests
                 var exitCode = await InventoryCliRunner.RunAsync(
                     NullLogger.Instance,
                     temp,
-                    "inventory.json",
                     string.Empty,
+                    string.Empty,
+                    "inventory.json",
                     discoverer,
                     retryAttempts: 0,
                     clean: false);
@@ -160,8 +167,9 @@ namespace SharpShift.Inventory.Tests
                 var exitCode = await InventoryCliRunner.RunAsync(
                     NullLogger.Instance,
                     temp,
+                    string.Empty,
+                    string.Empty,
                     "inventory.json",
-                    string.Empty, 
                     discoverer,
                     retryAttempts: 0,
                     clean: false);

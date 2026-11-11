@@ -99,6 +99,18 @@ namespace SharpShift.LoggerMessages
         [LoggerMessage(EventId = 5017, Level = LogLevel.Information, Message = "File system discovery completed. Discovered {SolutionCount} solutions.")]
         public static partial void FileSystemDiscoveryCompleted(ILogger logger, int solutionCount);
 
+        [LoggerMessage(EventId = 5018, Level = LogLevel.Information, Message = "TFVC URLs file found: {TfvcUrlsPath}")]
+        public static partial void TfvcUrlsFileFound(ILogger logger, string tfvcUrlsPath);
+
+        [LoggerMessage(EventId = 5019, Level = LogLevel.Information, Message = "Discovered TFVC URL: {TfvcUrl}")]
+        public static partial void DiscoveredTfvcUrl(ILogger logger, string tfvcUrl);
+
+        [LoggerMessage(EventId = 5020, Level = LogLevel.Information, Message = "TFVC discovery completed. Discovered {SolutionCount} solutions.")]
+        public static partial void TfvcDiscoveryCompleted(ILogger logger, int solutionCount);
+
+        [LoggerMessage(EventId = 5021, Level = LogLevel.Information, Message = "TFVC URLs file not found: {TfvcUrlsPath}")]
+        public static partial void TfvcUrlsFileNotFound(ILogger logger, string tfvcUrlsPath);
+
         //Project analysis messages
         [LoggerMessage(EventId = 2002, Level = LogLevel.Warning, Message = "Project path '{ProjectPath}' is invalid.")]
         public static partial void ProjectPathIsInvalid(ILogger logger, string projectPath);

@@ -79,9 +79,9 @@ namespace SharpShift
             IServiceProvider provider,
             ILoggerFactory loggerFactory)
         {
-            var (path, output, _, retryAttempts, clean, analyzeCloned, gitUrlsPath, _) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
+            var (path, output, _, retryAttempts, clean, analyzeCloned, gitUrlsPath, tfvcUrlsPath, _) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
 
-            return await ScanRepositories(path, output, retryAttempts, clean, analyzeCloned, gitUrlsPath, logger, provider, loggerFactory);
+            return await ScanRepositories(path, output, retryAttempts, clean, analyzeCloned, gitUrlsPath, tfvcUrlsPath, logger, provider, loggerFactory);
         }
 
         private static async Task<int> RunAnalysis(
@@ -90,7 +90,7 @@ namespace SharpShift
             string defaultAnalysisFilename,
             ILogger logger)
         {
-            var (path, output, analysisOutput, retryAttempts, clean, analyzeCloned, gitUrlsPath, dependencyHealthOptions) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
+            var (path, output, analysisOutput, retryAttempts, clean, analyzeCloned, gitUrlsPath, tfvcUrlsPath, dependencyHealthOptions) = ParseArguments(args, defaultOutputFilename, defaultAnalysisFilename);
 
             return await AnalyzeEstate(path, output, analysisOutput, retryAttempts, clean, logger, dependencyHealthOptions);
         }
@@ -103,6 +103,7 @@ namespace SharpShift
             bool clean,
             bool analyzeCloned,
             string gitUrlsPath,
+            string tfvcUrlsPath,
             DependencyHealthCheckOptions dependencyHealthOptions) ParseArguments(string[] args, string defaultOutputFilename, string defaultAnalysisFilename)
         {
             var path = args[1];
@@ -110,6 +111,7 @@ namespace SharpShift
             var analysisOutput = defaultAnalysisFilename;
             var retryAttempts = 0;
             var gitUrlsPath = string.Empty;
+            var tfvcUrlsPath = string.Empty;
             var clean = false;
             var analyzeCloned = false;
             var enableDependencyHealthChecks = true;
@@ -131,6 +133,7 @@ namespace SharpShift
                     "--nuget-service-index" when i + 1 < args.Length => () => { nuGetServiceIndexUrl = args[i + 1]; return 1; },
                     "--osv-endpoint" when i + 1 < args.Length => () => { osvQueryUrl = args[i + 1]; return 1; },
                     "--git-urls-path" when i + 1 < args.Length => () => { gitUrlsPath = args[i + 1]; return 1; },
+                    "--tfvc-urls-path" when i + 1 < args.Length => () => { tfvcUrlsPath = args[i + 1]; return 1; },
                     "--dependency-health-timeout" when i + 1 < args.Length => () =>
                     {
                         if (int.TryParse(args[i + 1], out var seconds) && seconds > 0)
@@ -151,6 +154,7 @@ namespace SharpShift
                 clean,
                 analyzeCloned,
                 gitUrlsPath,
+                tfvcUrlsPath,
                 new DependencyHealthCheckOptions
                 {
                     EnableChecks = enableDependencyHealthChecks,
@@ -228,6 +232,7 @@ namespace SharpShift
             bool clean,
             bool analyzeCloned,
             string gitUrlsPath,
+            string tfvcUrlsPath,
             ILogger logger,
             IServiceProvider provider,
             ILoggerFactory loggerFactory)
@@ -237,7 +242,7 @@ namespace SharpShift
             var sol = provider.GetRequiredService<ISolutionDiscoverer>();
             var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
 
-            return await InventoryCliRunner.RunAsync(runnerLogger, path, gitUrlsPath, output, sol, retryAttempts, clean);
+            return await InventoryCliRunner.RunAsync(runnerLogger, path, gitUrlsPath, tfvcUrlsPath, output, sol, retryAttempts, clean);
         }
 
         public static async Task<int> AnalyzeEstate(

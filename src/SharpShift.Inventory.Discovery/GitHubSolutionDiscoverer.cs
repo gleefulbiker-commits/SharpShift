@@ -37,7 +37,7 @@ namespace SharpShift.Inventory.Discovery
             }
         }
 
-        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null)
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath = null, string? gitUrlsPath = null, string? tfvcUrlsPath = null)
         {
             ArgumentNullException.ThrowIfNullOrWhiteSpace(rootPath, $"GitHub discovery skipped because root path is empty or missing: {rootPath}");
             ArgumentNullException.ThrowIfNull(_logger, $"GitHub discovery skipped because logger is null.");

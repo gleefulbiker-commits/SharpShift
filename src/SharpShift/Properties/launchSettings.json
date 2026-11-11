@@ -2,7 +2,7 @@
   "profiles": {
     "SharpShift": {
       "commandName": "Project",
-      "commandLineArgs": "runall C:\\Users\\Kerry\\source --git-urls-path \"\"C:\\source\\gitlab-urls.txt\"\""
+      "commandLineArgs": "runall C:\\Users\\Kerry\\source --git-urls-path \"\"C:\\source\\gitlab-urls.txt\"\" --tfvc-urls-path \"C:\\Users\\Kerry\\source\\tfvc-root-folders.txt\""
     }
   }
 }

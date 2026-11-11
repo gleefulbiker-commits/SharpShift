@@ -28,6 +28,7 @@ namespace SharpShift.Inventory.Cli
             ILogger logger,
             string rootPath,
             string gitUrlsPath,
+            string tfvcUrlsPath,
             string outputFile,
             ISolutionDiscoverer? solutionDiscoverer = null,
             int retryAttempts = 0,
@@ -46,15 +47,23 @@ namespace SharpShift.Inventory.Cli
                     return 2;
                 }
 
+                if (string.IsNullOrWhiteSpace(outputFile))
+                {
+                    logger.LogError("Output file name is required.");
+                    Console.Error.WriteLine("Output file name is required.");
+                    return 2;
+                }
+
                 if (solutionDiscoverer is null)
                 {
                     throw new ArgumentNullException(nameof(solutionDiscoverer), "Solution discoverer is required.");
                 }
 
-                var discoveryEntries = (await solutionDiscoverer.DiscoverSolutionsAsync(rootPath, gitUrlsPath)).ToList();
+                var discoveryEntries = (await solutionDiscoverer.DiscoverSolutionsAsync(rootPath, gitUrlsPath, tfvcUrlsPath)).ToList();
                 var fileSystemEntries = GetFileSystemEntries(discoveryEntries).ToList();
                 var gitHubEntries = GetGitHubRepoEntries(discoveryEntries).ToList();
                 var otherGitEntries = GetOtherGitRepoEntries(discoveryEntries).ToList();
+                var tfvcEntries = GetTfvcRepoEntries(discoveryEntries).ToList();
                 var evaluatedSolutionPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 await EvaluateAndAppendSolutions(
@@ -86,6 +95,12 @@ namespace SharpShift.Inventory.Cli
 
                 var json = JsonSerializer.Serialize(allSolutions, options);
                 var fullPath = Path.Combine(rootPath, outputFile);
+                if (Directory.Exists(fullPath))
+                {
+                    logger.LogError("Output path is a directory: {FullPath}", fullPath);
+                    Console.Error.WriteLine($"Output path is a directory: {fullPath}");
+                    return 2;
+                }
 
                 File.WriteAllText(fullPath, json);
                 LogMessages.WritingInventory(logger ?? throw new ArgumentNullException(nameof(logger)), fullPath);
@@ -117,6 +132,13 @@ namespace SharpShift.Inventory.Cli
         {
             return entries.Where(entry =>
                 string.Equals(entry.Source, "Git", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(entry.RepoUrl));
+        }
+
+        private static IEnumerable<SolutionDiscoveryEntry> GetTfvcRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
+        {
+            return entries.Where(entry =>
+                string.Equals(entry.Source, "TFVC", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(entry.RepoUrl));
         }
 

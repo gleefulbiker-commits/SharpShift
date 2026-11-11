@@ -19,6 +19,7 @@ namespace SharpShift.Inventory.Tests
                 NullLogger.Instance,
                 "Z:\\path-that-does-not-exist-for-tests",
                 "inventory.json",
+                string.Empty,
                 string.Empty);
 
             Assert.AreEqual(2, code);
@@ -53,6 +54,7 @@ namespace SharpShift.Inventory.Tests
                 var code = await SharpShift.Inventory.Cli.InventoryCliRunner.RunAsync(
                     NullLogger.Instance,
                     temp,
+                    string.Empty,
                     string.Empty,
                     output,
                     new SolutionDiscoverer());

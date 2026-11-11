@@ -20,7 +20,7 @@ namespace SharpShift.Inventory.Discovery
             throw new NotImplementedException();
         }
 
-        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath, string? gitUrlsPath)
+        public async Task<IEnumerable<SolutionDiscoveryEntry>> DiscoverSolutionsAsync(string? rootPath, string? gitUrlsPath, string? tfvcUrlsPath)
         {
             var results = new List<SolutionDiscoveryEntry>();
 
