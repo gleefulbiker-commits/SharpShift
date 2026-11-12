@@ -23,7 +23,7 @@ namespace SharpShift.Inventory.Discovery
             var slnxFiles = Directory.EnumerateFiles(rootPath, "*.slnx", SearchOption.AllDirectories);
             var files = slnFiles.Concat(slnxFiles).Distinct();
 
-            var entries = files.Select(p => new SolutionDiscoveryEntry { Source = "FileSystem", LocalPath = p });
+            var entries = files.Select(p => new SolutionDiscoveryEntry { Source = RepoSourceType.FileSystem, LocalPath = p });
             var count = entries.Count();
             LogMessages.DiscoveredLocalSolutionFiles(logger, count, rootPath);
             return Task.FromResult<IEnumerable<SolutionDiscoveryEntry>>(entries);

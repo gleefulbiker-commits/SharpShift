@@ -71,7 +71,7 @@ namespace SharpShift.Inventory.Core.Utilities
             {
                 result.Add(new SolutionDiscoveryEntry
                 {
-                    Source = "TFVC",
+                    Source = RepoSourceType.Tfvc,
                     LocalPath = slnFile,
                     RepoUrl = workspaceDirectory, // In TFVC, the workspace directory is the root of the mapped repository.
                     IsArchived = false,

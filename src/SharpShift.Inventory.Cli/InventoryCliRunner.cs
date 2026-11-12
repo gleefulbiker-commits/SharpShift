@@ -66,6 +66,8 @@ namespace SharpShift.Inventory.Cli
                 var tfvcEntries = GetTfvcRepoEntries(discoveryEntries).ToList();
                 var evaluatedSolutionPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                discoveryEntries = DeDuplicateEntries(logger, discoveryEntries, fileSystemEntries, gitHubEntries, RepoSourceType.GitHub);
+                
                 await EvaluateAndAppendSolutions(
                     logger,
                     fileSystemEntries.Select(entry => entry.LocalPath!),
@@ -114,31 +116,49 @@ namespace SharpShift.Inventory.Cli
             }
         }
 
+        private static List<SolutionDiscoveryEntry> DeDuplicateEntries(
+            ILogger logger,
+            List<SolutionDiscoveryEntry> allEntries,
+            List<SolutionDiscoveryEntry> fileSystemEntries,
+            List<SolutionDiscoveryEntry> remoteRepoEntries,
+            string remoteRepoSource)
+        {
+            var intersection = fileSystemEntries.Select(fs => fs.RepoUrl).Intersect(remoteRepoEntries.Select(gh => gh.RepoUrl), StringComparer.OrdinalIgnoreCase).ToList();
+
+            foreach (var repoUrl in intersection)
+            {
+                LogMessages.DuplicateSolutionDiscovery(logger, repoUrl);
+                remoteRepoEntries.RemoveAll(entry => string.Equals(entry.RepoUrl, repoUrl, StringComparison.OrdinalIgnoreCase) && string.Equals(entry.Source, remoteRepoSource, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return allEntries;
+        }
+
         private static IEnumerable<SolutionDiscoveryEntry> GetFileSystemEntries(IEnumerable<SolutionDiscoveryEntry> entries)
         {
             return entries.Where(entry =>
-                string.Equals(entry.Source, "FileSystem", StringComparison.OrdinalIgnoreCase)
+                string.Equals(entry.Source, RepoSourceType.FileSystem, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(entry.LocalPath));
         }
 
         private static IEnumerable<SolutionDiscoveryEntry> GetGitHubRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
         {
             return entries.Where(entry =>
-                string.Equals(entry.Source, "GitHub", StringComparison.OrdinalIgnoreCase)
+                string.Equals(entry.Source, RepoSourceType.GitHub, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(entry.RepoUrl));
         }
 
         private static IEnumerable<SolutionDiscoveryEntry> GetOtherGitRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
         {
             return entries.Where(entry =>
-                string.Equals(entry.Source, "Git", StringComparison.OrdinalIgnoreCase)
+                string.Equals(entry.Source, RepoSourceType.OtherGit, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(entry.RepoUrl));
         }
 
         private static IEnumerable<SolutionDiscoveryEntry> GetTfvcRepoEntries(IEnumerable<SolutionDiscoveryEntry> entries)
         {
             return entries.Where(entry =>
-                string.Equals(entry.Source, "TFVC", StringComparison.OrdinalIgnoreCase)
+                string.Equals(entry.Source, RepoSourceType.Tfvc, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(entry.RepoUrl));
         }
 

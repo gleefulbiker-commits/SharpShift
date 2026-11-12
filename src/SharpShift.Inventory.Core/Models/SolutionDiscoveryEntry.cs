@@ -13,12 +13,12 @@ namespace SharpShift.Inventory.Core.Models
         public string Source { get; set; } = string.Empty;
 
         /// <summary>
-        /// Local file system path to a .sln or .slnx file when Source == "FileSystem".
+        /// Local file system path to a .sln or .slnx file when Source == RepoSourceType.FileSystem.
         /// </summary>
         public string? LocalPath { get; set; }
 
         /// <summary>
-        /// Repository web URL (e.g., https://github.com/owner/repo) when Source == "GitHub".
+        /// Repository web URL (e.g., https://github.com/owner/repo) when Source == RepoSourceType.GitHub.
         /// </summary>
         public string? RepoUrl { get; set; }
 

@@ -46,7 +46,7 @@ namespace SharpShift.Inventory.Discovery
                     if (isSuccess)
                     {
                         LogMessages.RepositoryCloneResolved(logger!, url, Path.Combine(clonePath, repoName));
-                        results.Add(new SolutionDiscoveryEntry { Source = "Git", LocalPath = Path.Combine(clonePath, repoName), RepoUrl = url });
+                        results.Add(new SolutionDiscoveryEntry { Source = RepoSourceType.OtherGit, LocalPath = Path.Combine(clonePath, repoName), RepoUrl = url });
                     }
                     else
                     {

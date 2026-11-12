@@ -27,6 +27,9 @@ namespace SharpShift.LoggerMessages
         [LoggerMessage(EventId = 2008, Level = LogLevel.Warning, Message = "Git URLs file does not exist: {gitUrlsPath}")]
         public static partial void GitUrlsFileNotFound(ILogger logger, string gitUrlsPath);
 
+        [LoggerMessage(EventId = 2009, Level = LogLevel.Information, Message = "Duplicate solution removed for repository {RepoUrl}")]
+        public static partial void DuplicateSolutionDiscovery(ILogger logger, string repoUrl);
+
         // Handle failed clone
         [LoggerMessage(EventId = 2009, Level = LogLevel.Error, Message = "Failed to clone repository {RepoUrl} into {TargetDirectory}")]
         public static partial void FailedToCloneRepository(ILogger logger, string repoUrl, string targetDirectory);

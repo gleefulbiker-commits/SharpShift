@@ -45,17 +45,6 @@ namespace SharpShift.Inventory.Discovery
                         var repoDetails = await TfvcHelper.GetSolutionsInTfvcWorkspace(mappedRoot!);
                         results.AddRange(repoDetails);
                     }
-                    //var repoName = repoDetails.RepoUrl;
-                    //var isSuccess = await GitHelper.TryClone(url, Path.Combine(clonePath, repoName), DefaultGitCloneDepth, DefaultGitCloneTimeoutSeconds, logger);
-                    //if (isSuccess)
-                    //{
-                    //    LogMessages.RepositoryCloneResolved(logger!, url, Path.Combine(clonePath, repoName));
-                    //    results.Add(new SolutionDiscoveryEntry { Source = "Git", LocalPath = Path.Combine(clonePath, repoName), RepoUrl = url });
-                    //}
-                    //else
-                    //{
-                    //    LogMessages.FailedToCloneRepository(logger!, url, Path.Combine(clonePath, repoName));
-                    //}
                 }
             }
 

@@ -52,9 +52,9 @@ namespace SharpShift.Inventory.Tests
 
                 var discoverer = new FakeSolutionDiscoverer(
                 [
-                    new SolutionDiscoveryEntry { Source = "FileSystem", LocalPath = localSolution },
+                    new SolutionDiscoveryEntry { Source = RepoSourceType.FileSystem, LocalPath = localSolution },
                     new SolutionDiscoveryEntry { 
-                        Source = "GitHub",
+                        Source = RepoSourceType.GitHub,
                         RepoUrl = "https://github.com/owner1/repo1",
                         Owner = "owner1",
                         RepoName = "repo1",
@@ -105,7 +105,7 @@ namespace SharpShift.Inventory.Tests
                 [
                     new SolutionDiscoveryEntry
                     {
-                        Source = "GitHub",
+                        Source = RepoSourceType.GitHub,
                         RepoUrl = "https://github.com/owner2/repo2",
                         Owner = "owner2",
                         RepoName = "repo2",
@@ -152,10 +152,10 @@ namespace SharpShift.Inventory.Tests
 
                 var discoverer = new FakeSolutionDiscoverer(
                 [
-                    new SolutionDiscoveryEntry { Source = "FileSystem", LocalPath = sharedSolution },
+                    new SolutionDiscoveryEntry { Source = RepoSourceType.FileSystem, LocalPath = sharedSolution },
                     new SolutionDiscoveryEntry
                     {
-                        Source = "GitHub",
+                        Source = RepoSourceType.GitHub,
                         RepoUrl = "https://github.com/owner3/repo3",
                         Owner = "owner3",
                         RepoName = "repo3",

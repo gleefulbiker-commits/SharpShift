@@ -131,7 +131,7 @@ namespace SharpShift.Inventory.Discovery
 
                         var entry = new SolutionDiscoveryEntry
                         {
-                            Source = "GitHub",
+                            Source = RepoSourceType.GitHub,
                             RepoUrl = htmlUrl,
                             RepoName = name,
                             Owner = owner,
