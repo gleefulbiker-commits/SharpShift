@@ -47,9 +47,8 @@ namespace SharpShift.Inventory.Core.Utilities
             if (!File.Exists(inventoryFile))
                 throw new FileNotFoundException("Inventory file not found.", inventoryFile);
 
-            await using var inventoryStream = File.OpenRead(inventoryFile);
-            var solutions = await JsonSerializer.DeserializeAsync<List<SolutionInventory>>(inventoryStream, _jsonOptions, cancellationToken)
-                ?? [];
+            var inventoryJson = await File.ReadAllTextAsync(inventoryFile, cancellationToken);
+            var solutions = InventoryOutputReader.Deserialize(inventoryJson, _jsonOptions);
 
             var analysisFile = Path.Combine(inputDirectory, options.AnalysisFileName);
             ProjectAnalysisResult? analysis = null;
@@ -116,7 +115,7 @@ namespace SharpShift.Inventory.Core.Utilities
         }
 
         public static Dictionary<RiskSeverity, int> InitializeSeverityCounts() =>
-            new Dictionary<RiskSeverity, int>
+            new ()
             {
                 [RiskSeverity.Critical] = 0,
                 [RiskSeverity.High] = 0,

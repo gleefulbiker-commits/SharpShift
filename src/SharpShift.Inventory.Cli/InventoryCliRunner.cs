@@ -1,5 +1,6 @@
 using SharpShift.LoggerMessages;
 using SharpShift.Inventory.Core.Interfaces;
+using SharpShift.Inventory.Core.Licensing;
 using SharpShift.Inventory.Core.Models;
 using SharpShift.Inventory.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -32,7 +33,8 @@ namespace SharpShift.Inventory.Cli
             string outputFile,
             ISolutionDiscoverer? solutionDiscoverer = null,
             int retryAttempts = 0,
-            bool clean = false)
+            bool clean = false,
+            ILicenseAuthorizationClient? licenseAuthorizationClient = null)
         {
             ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
@@ -57,6 +59,23 @@ namespace SharpShift.Inventory.Cli
                 if (solutionDiscoverer is null)
                 {
                     throw new ArgumentNullException(nameof(solutionDiscoverer), "Solution discoverer is required.");
+                }
+
+                if (licenseAuthorizationClient is null)
+                {
+                    logger.LogError("Licensing is not configured. Inventory generation is blocked.");
+                    return 4;
+                }
+
+                AuthorizedRun authorizedRun;
+                try
+                {
+                    authorizedRun = await licenseAuthorizationClient.AuthorizeRunAsync(DateTimeOffset.UtcNow);
+                }
+                catch (LicenseAuthorizationException ex)
+                {
+                    logger.LogError(ex, "License authorization failed. Inventory generation is blocked.");
+                    return 4;
                 }
 
                 var discoveryEntries = (await solutionDiscoverer.DiscoverSolutionsAsync(rootPath, gitUrlsPath, tfvcUrlsPath)).ToList();
@@ -95,7 +114,6 @@ namespace SharpShift.Inventory.Cli
                     logger?.LogInformation("Performed clean restart: removed output and cleared evaluator cache.");
                 }
 
-                var json = JsonSerializer.Serialize(allSolutions, options);
                 var fullPath = Path.Combine(rootPath, outputFile);
                 if (Directory.Exists(fullPath))
                 {
@@ -104,6 +122,25 @@ namespace SharpShift.Inventory.Cli
                     return 2;
                 }
 
+                var inventoryBytes = JsonSerializer.SerializeToUtf8Bytes(allSolutions, options);
+                SignedOutputReceipt receipt;
+                try
+                {
+                    receipt = await licenseAuthorizationClient.SignOutputAsync(authorizedRun, inventoryBytes);
+                }
+                catch (LicenseAuthorizationException ex)
+                {
+                    logger.LogError(ex, "Inventory output signing failed. No output file was written.");
+                    return 4;
+                }
+
+                var signedInventory = new SignedInventoryDocument(
+                    authorizedRun.License.CustomerId,
+                    authorizedRun.License.LicenseId,
+                    authorizedRun.Token.RunNonce,
+                    allSolutions,
+                    receipt);
+                var json = JsonSerializer.Serialize(signedInventory, options);
                 File.WriteAllText(fullPath, json);
                 LogMessages.WritingInventory(logger ?? throw new ArgumentNullException(nameof(logger)), fullPath);
                 return 0;

@@ -31,7 +31,7 @@ namespace SharpShift.LoggerMessages
         public static partial void DuplicateSolutionDiscovery(ILogger logger, string repoUrl);
 
         // Handle failed clone
-        [LoggerMessage(EventId = 2009, Level = LogLevel.Error, Message = "Failed to clone repository {RepoUrl} into {TargetDirectory}")]
+        [LoggerMessage(EventId = 2010, Level = LogLevel.Error, Message = "Failed to clone repository {RepoUrl} into {TargetDirectory}")]
         public static partial void FailedToCloneRepository(ILogger logger, string repoUrl, string targetDirectory);
 
         // Writing inventory messages
@@ -138,5 +138,27 @@ namespace SharpShift.LoggerMessages
         //Report generation messages
         [LoggerMessage(EventId = 4000, Level = LogLevel.Information, Message = "Generating report for '{InputDirectory}' with output '{OutputDirectory}'")]
         public static partial void GeneratingReport(ILogger logger, string inputDirectory, string outputDirectory);
+
+        // Licensing messages
+        [LoggerMessage(EventId = 6000, Level = LogLevel.Warning, Message = "LicenseId {LicenseId} outcome: invalid-status-signature")]
+        public static partial void LicenseInvalidStatusSignature(ILogger logger, string licenseId);
+
+        [LoggerMessage(EventId = 6001, Level = LogLevel.Information, Message = "LicenseId {LicenseId} outcome: status-served")]
+        public static partial void LicenseStatusServed(ILogger logger, string licenseId);
+
+        [LoggerMessage(EventId = 6002, Level = LogLevel.Error, Message = "LicenseId {LicenseId} outcome: status-unavailable")]
+        public static partial void LicenseStatusUnavailable(ILogger logger, string licenseId);
+
+        [LoggerMessage(EventId = 6003, Level = LogLevel.Information, Message = "LicenseId {LicenseId} outcome: rejected-or-replayed")]
+        public static partial void LicenseRejectedOrReplayed(ILogger logger, string licenseId);
+
+        [LoggerMessage(EventId = 6004, Level = LogLevel.Information, Message = "LicenseId {LicenseId} outcome: authorized")]
+        public static partial void LicenseAuthorized(ILogger logger, string licenseId);
+
+        [LoggerMessage(EventId = 6005, Level = LogLevel.Information, Message = "LicenseId {LicenseId} outcome: output-signed")]
+        public static partial void LicenseOutputSigned(ILogger logger, string licenseId);
+
+        [LoggerMessage(EventId = 6006, Level = LogLevel.Error, Message = "LicenseId {LicenseId} outcome: replay-store-unavailable")]
+        public static partial void LicenseReplayStoreUnavailable(ILogger logger, string licenseId);
     }
 }

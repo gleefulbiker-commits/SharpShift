@@ -1,11 +1,14 @@
 using System.IO;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using SharpShift.Inventory.Core.Models;
+using SharpShift.Inventory.Core.Licensing;
+using SharpShift.Inventory.Core.Utilities;
 using SharpShift.Inventory.Discovery;
 
 namespace SharpShift.Inventory.Tests
@@ -23,6 +26,30 @@ namespace SharpShift.Inventory.Tests
                 string.Empty);
 
             Assert.AreEqual(2, code);
+        }
+
+        [Test]
+        public async Task InventoryCliRunner_ValidRootWithoutLicense_FailsClosed()
+        {
+            var temp = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            Directory.CreateDirectory(temp);
+            try
+            {
+                var code = await SharpShift.Inventory.Cli.InventoryCliRunner.RunAsync(
+                    NullLogger.Instance,
+                    temp,
+                    string.Empty,
+                    string.Empty,
+                    "inventory.json",
+                    new SolutionDiscoverer());
+
+                Assert.AreEqual(4, code);
+                Assert.IsFalse(File.Exists(Path.Combine(temp, "inventory.json")));
+            }
+            finally
+            {
+                Directory.Delete(temp, true);
+            }
         }
 
         [Test]
@@ -57,14 +84,22 @@ namespace SharpShift.Inventory.Tests
                     string.Empty,
                     string.Empty,
                     output,
-                    new SolutionDiscoverer());
+                    new SolutionDiscoverer(),
+                    licenseAuthorizationClient: new TestLicenseAuthorizationClient());
                 Assert.AreEqual(0, code, "Runner did not return success code");
 
                 var outputPath = Path.Combine(temp, output);
                 Assert.IsTrue(File.Exists(outputPath), "Output file not created");
 
                 var json = File.ReadAllText(outputPath);
-                var inventories = JsonSerializer.Deserialize<List<SolutionInventory>>(json);
+                var signedDocument = JsonSerializer.Deserialize<SignedInventoryDocument>(json);
+                Assert.IsNotNull(signedDocument);
+                Assert.AreEqual("test-customer", signedDocument!.CustomerId);
+                Assert.AreEqual("test-license", signedDocument.LicenseId);
+                var inventoryBytes = JsonSerializer.SerializeToUtf8Bytes(signedDocument.Inventory, SharpShift.Inventory.Cli.InventoryCliRunner.options);
+                Assert.AreEqual(Convert.ToHexString(SHA256.HashData(inventoryBytes)).ToLowerInvariant(), signedDocument.Receipt.OutputSha256);
+
+                var inventories = InventoryOutputReader.Deserialize(json);
                 Assert.IsNotNull(inventories);
                 var inv = inventories?.FirstOrDefault(i => i.SolutionName == "Sample");
                 Assert.IsNotNull(inv);
@@ -73,6 +108,14 @@ namespace SharpShift.Inventory.Tests
                 // frameworks normalized
                 Assert.IsTrue(inv?.Projects.Exists(p => p.Framework == ".NET Framework 4.6.2"));
                 Assert.IsTrue(inv?.Projects.Exists(p => p.Framework == ".NET Framework 4.8"));
+
+                var reportData = await ReportDataUtils.LoadDataFromJsonAsync(new ReportOptions
+                {
+                    InputDirectory = temp,
+                    InventoryFileName = output,
+                    AnalysisFileName = "missing-analysis.json"
+                });
+                Assert.AreEqual(inventories!.Count, reportData.Solutions.Count);
             }
             finally
             {

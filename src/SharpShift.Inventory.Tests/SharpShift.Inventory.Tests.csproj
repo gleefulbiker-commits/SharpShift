@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SharpShift.Inventory.Core\SharpShift.Inventory.Core.csproj" />
+    <ProjectReference Include="..\SharpShift.Inventory.Licensing.Server\SharpShift.Inventory.Licensing.Server.csproj" />
     <ProjectReference Include="..\SharpShift.Inventory.Cli\SharpShift.Inventory.Cli.csproj" />
     <ProjectReference Include="..\SharpShift.Inventory.Discovery\SharpShift.Inventory.Discovery.csproj" />
     <ProjectReference Include="..\SharpShift.Inventory.ProjectAnalysis\SharpShift.Inventory.ProjectAnalysis.csproj" />

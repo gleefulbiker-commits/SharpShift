@@ -14,4 +14,8 @@
     <ProjectReference Include="..\SharpShift.LoggerMessages\SharpShift.LoggerMessages.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Licensing\license-public-key.pem" LogicalName="SharpShift.Inventory.Core.Licensing.license-public-key.pem" />
+  </ItemGroup>
+
 </Project>

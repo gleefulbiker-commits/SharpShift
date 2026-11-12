@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using SharpShift.Inventory.Cli;
 using SharpShift.Inventory.Core.Interfaces;
 using SharpShift.Inventory.Core.Models;
+using SharpShift.Inventory.Core.Licensing;
+using SharpShift.Inventory.Core.Utilities;
 using SharpShift.Inventory.Discovery;
 using SharpShift.Inventory.ProjectAnalysis;
 using SharpShift.Inventory.Reporting;
@@ -29,6 +31,9 @@ namespace SharpShift
                 });
             });
             services.AddSingleton<ISolutionDiscoverer, SolutionDiscoverer>();
+            using var licenseAuthorizationClient = CreateLicenseAuthorizationClient();
+            if (licenseAuthorizationClient is not null)
+                services.AddSingleton<ILicenseAuthorizationClient>(licenseAuthorizationClient);
 
             using var provider = services.BuildServiceProvider();
             var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
@@ -39,7 +44,7 @@ namespace SharpShift
                 if (args.Length < 2)
                 {
                     logger.LogWarning("Insufficient arguments provided.");
-                    Console.WriteLine("Usage: scan|analyze|report <path> [options]");
+                    Console.WriteLine("Usage: scan|analyze|report|runall <path> [options]");
                     return 1;
                 }
 
@@ -242,7 +247,17 @@ namespace SharpShift
             var sol = provider.GetRequiredService<ISolutionDiscoverer>();
             var runnerLogger = loggerFactory.CreateLogger("SharpShift.Inventory.Cli.InventoryCliRunner");
 
-            return await InventoryCliRunner.RunAsync(runnerLogger, path, gitUrlsPath, tfvcUrlsPath, output, sol, retryAttempts, clean);
+            var licenseAuthorizationClient = provider.GetService<ILicenseAuthorizationClient>();
+            return await InventoryCliRunner.RunAsync(
+                runnerLogger,
+                path,
+                gitUrlsPath,
+                tfvcUrlsPath,
+                output,
+                sol,
+                retryAttempts,
+                clean,
+                licenseAuthorizationClient);
         }
 
         public static async Task<int> AnalyzeEstate(
@@ -263,7 +278,7 @@ namespace SharpShift
 
             LogMessages.StartingAnalysis(logger, path, output);
             var fullyqualifiedOutputPath = Path.Combine(path, output);
-            var solutions = JsonSerializer.Deserialize<List<SolutionInventory>>(File.ReadAllText(fullyqualifiedOutputPath), options) ?? [];
+            var solutions = InventoryOutputReader.Deserialize(File.ReadAllText(fullyqualifiedOutputPath), options);
             logger.LogInformation(LogMessages.StartingSolutionAnalysis);
 
             logger.LogInformation(LogMessages.StartingProjectAnalysis);
@@ -332,6 +347,61 @@ namespace SharpShift
                 return reportResult;
             }
             return 0; // All commands succeeded
+        }
+
+        private static LicenseAuthorizationClient? CreateLicenseAuthorizationClient()
+        {
+            var licensePath = Environment.GetEnvironmentVariable("SHARPSHIFT_LICENSE_FILE");
+            var primaryStatusUrl = Environment.GetEnvironmentVariable("SHARPSHIFT_LICENSE_STATUS_PRIMARY_URL");
+            var secondaryStatusUrl = Environment.GetEnvironmentVariable("SHARPSHIFT_LICENSE_STATUS_SECONDARY_URL");
+            var verificationUrl = Environment.GetEnvironmentVariable("SHARPSHIFT_LICENSE_VERIFICATION_URL");
+
+            if (string.IsNullOrWhiteSpace(licensePath)
+                || !TryCreateBaseUri(primaryStatusUrl, out var primaryStatusUri)
+                || !TryCreateBaseUri(secondaryStatusUrl, out var secondaryStatusUri)
+                || !TryCreateBaseUri(verificationUrl, out var verificationEndpoint))
+            {
+                return null;
+            }
+
+            System.Security.Cryptography.ECDsa? publicKey;
+            try
+            {
+                publicKey = LicenseVerifier.LoadEmbeddedPublicKey();
+            }
+            catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or ArgumentException)
+            {
+                Console.Error.WriteLine($"The embedded licensing public key is invalid: {ex.Message}");
+                return null;
+            }
+
+            if (publicKey is null)
+                return null;
+
+            var verifier = new LicenseVerifier(publicKey);
+            return new LicenseAuthorizationClient(
+                new LicenseAuthorizationOptions(
+                    primaryStatusUri,
+                    secondaryStatusUri,
+                    verificationEndpoint,
+                    licensePath,
+                    TimeSpan.FromSeconds(3),
+                    TimeSpan.FromMinutes(5)),
+                verifier,
+                ownsVerifier: true);
+        }
+
+        private static bool TryCreateBaseUri(string? value, out Uri uri)
+        {
+            uri = null!;
+            if (!Uri.TryCreate(value, UriKind.Absolute, out var parsed)
+                || (parsed.Scheme != Uri.UriSchemeHttps && !parsed.IsLoopback))
+            {
+                return false;
+            }
+
+            uri = new Uri(parsed.AbsoluteUri.EndsWith('/') ? parsed.AbsoluteUri : parsed.AbsoluteUri + "/", UriKind.Absolute);
+            return true;
         }
     }
 }

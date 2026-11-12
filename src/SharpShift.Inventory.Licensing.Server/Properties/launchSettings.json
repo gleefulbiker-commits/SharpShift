@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "SharpShift.Inventory.Licensing.Server": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:59672;http://localhost:59673"
+    }
+  }
+}

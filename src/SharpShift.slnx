@@ -2,6 +2,8 @@
   <Project Path="SharpShift.Inventory.Core/SharpShift.Inventory.Core.csproj" />
   <Project Path="SharpShift.Inventory.Cli/SharpShift.Inventory.Cli.csproj" />
   <Project Path="SharpShift.Inventory.Discovery/SharpShift.Inventory.Discovery.csproj" />
+  <Project Path="SharpShift.Inventory.Licensing.Issuer/SharpShift.Inventory.Licensing.Issuer.csproj" />
+  <Project Path="SharpShift.Inventory.Licensing.Server/SharpShift.Inventory.Licensing.Server.csproj" />
   <Project Path="SharpShift.Inventory.ProjectAnalysis/SharpShift.Inventory.ProjectAnalysis.csproj" />
   <Project Path="SharpShift.Inventory.DependencyAnalysis/SharpShift.Inventory.DependencyAnalysis.csproj" />
   <Project Path="SharpShift.Inventory.RiskAnalysis/SharpShift.Inventory.RiskAnalysis.csproj" />

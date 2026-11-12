@@ -69,13 +69,14 @@ namespace SharpShift.Inventory.Tests
                     "inventory.json",
                     discoverer,
                     retryAttempts: 0,
-                    clean: false);
+                    clean: false,
+                    licenseAuthorizationClient: new TestLicenseAuthorizationClient());
 
                 Assert.That(exitCode, Is.EqualTo(0));
 
                 var inventoryPath = Path.Combine(temp, "inventory.json");
                 var json = File.ReadAllText(inventoryPath);
-                var items = JsonSerializer.Deserialize<List<SolutionInventory>>(json, InventoryCliRunner.options) ?? [];
+                var items = InventoryOutputReader.Deserialize(json, InventoryCliRunner.options);
 
                 //Assert.That(items.Any(i => i.RepositoryUrl == "https://github.com/owner1/repo1" && i.IsArchived == false), Is.True);
                 Assert.That(items.Any(i => string.Equals(i.SolutionPath, Path.GetFullPath(localSolution), StringComparison.OrdinalIgnoreCase)), Is.True);
@@ -121,7 +122,8 @@ namespace SharpShift.Inventory.Tests
                     "inventory.json",
                     discoverer,
                     retryAttempts: 0,
-                    clean: false);
+                    clean: false,
+                    licenseAuthorizationClient: new TestLicenseAuthorizationClient());
 
                 Assert.That(exitCode, Is.EqualTo(0));
                 Assert.That(Directory.Exists(Path.Combine(cloneBase, "owner2", "repo2")), Is.False);
@@ -172,13 +174,14 @@ namespace SharpShift.Inventory.Tests
                     "inventory.json",
                     discoverer,
                     retryAttempts: 0,
-                    clean: false);
+                    clean: false,
+                    licenseAuthorizationClient: new TestLicenseAuthorizationClient());
 
                 Assert.That(exitCode, Is.EqualTo(0));
 
                 var inventoryPath = Path.Combine(temp, "inventory.json");
                 var json = File.ReadAllText(inventoryPath);
-                var items = JsonSerializer.Deserialize<List<SolutionInventory>>(json, InventoryCliRunner.options) ?? [];
+                var items = InventoryOutputReader.Deserialize(json, InventoryCliRunner.options);
 
                 var matchCount = items.Count(i => string.Equals(i.SolutionPath, Path.GetFullPath(sharedSolution), StringComparison.OrdinalIgnoreCase));
                 Assert.That(matchCount, Is.EqualTo(1));
